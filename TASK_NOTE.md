@@ -1,6 +1,7 @@
 # RustDeskMCP - FastMCP 2.10 Conformance Task
 
 ## Current State
+
 - Basic server implementation exists in `server.py`
 - Uses FastMCP but needs updates for 2.10 compliance
 - Has core RustDesk functionality but needs restructuring
@@ -8,6 +9,7 @@
 ## Required Changes for FastMCP 2.10 Compliance
 
 ### 1. Project Structure
+
 ```
 rustdeskmcp/
 ├── .github/
@@ -35,6 +37,7 @@ rustdeskmcp/
 ```
 
 ### 2. FastMCP 2.10 Updates
+
 - [ ] Update FastMCP initialization to use new 2.10 syntax
 - [ ] Implement proper lifecycle management
 - [ ] Add proper error handling and logging
@@ -43,6 +46,7 @@ rustdeskmcp/
 - [ ] Add input validation using Pydantic models
 
 ### 3. Core Functionality to Implement/Update
+
 - [ ] Remote connection management
 - [ ] Server status monitoring  
 - [ ] Configuration management
@@ -51,6 +55,7 @@ rustdeskmcp/
 - [ ] Performance monitoring
 
 ### 4. Development Setup
+
 1. Create virtual environment
 2. Install dependencies: `pip install -r requirements.txt`
 3. Copy `.env.example` to `.env` and configure
@@ -58,18 +63,21 @@ rustdeskmcp/
 5. Start server: `python -m rustdesk_mcp.server`
 
 ### 5. Testing Strategy
+
 - Unit tests for all services
 - Integration tests for API endpoints
 - End-to-end tests for critical workflows
 - Performance benchmarking
 
 ### 6. Documentation
+
 - API documentation
 - Setup instructions
 - Usage examples
 - Deployment guide
 
 ## Next Steps
+
 1. Set up project structure
 2. Update dependencies
 3. Refactor existing code

@@ -1,0 +1,19 @@
+# Include README
+include README.md
+include LICENSE
+include requirements.txt
+
+# Include package data
+recursive-include src/rustdesk_mcp/*.json
+recursive-include src/rustdesk_mcp/*.md
+recursive-include src/rustdesk_mcp/templates *
+recursive-include src/rustdesk_mcp/static *
+
+# Include documentation
+recursive-include docs *
+
+# Include tests
+recursive-include tests *
+
+# Include configuration examples
+recursive-include examples *

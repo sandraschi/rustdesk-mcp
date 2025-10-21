@@ -1,4 +1,4 @@
-""
+"""
 RustDeskMCP - FastMCP 2.10 Server for RustDesk Remote Desktop Management
 
 Provides natural language interface for RustDesk operations through FastMCP protocol.
@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from fastmcp import FastMCP
+from fastmcp import FastMCP, Tool
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +20,9 @@ from fastapi.responses import JSONResponse
 from .config import Config, get_config
 from .api.v1.routes import router as v1_router
 from .services.rustdesk_service import RustDeskService
+from .tools import RustDeskTools
+from .documentation import help_tool
+from fastmcp import Tool
 
 # Configure logging
 logging.basicConfig(
@@ -56,21 +59,23 @@ mcp = FastMCP(
     log_level=os.getenv("LOG_LEVEL", "INFO").upper(),
 )
 
-# Store the RustDesk service instance
+# Store the service instances
 rustdesk_service: Optional[RustDeskService] = None
+rustdesk_tools: Optional[RustDeskTools] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize the application on startup."""
-    global rustdesk_service
+    global rustdesk_service, rustdesk_tools
     
     try:
         # Get configuration
         config = get_config()
         
-        # Initialize RustDesk service
+        # Initialize RustDesk service and tools
         rustdesk_service = RustDeskService(config.rustdesk_path, config.rustdesk_config_dir)
+        rustdesk_tools = RustDeskTools(rustdesk_service)
         
         # Register tools with MCP
         await register_tools()
@@ -84,72 +89,157 @@ async def startup_event():
 
 async def register_tools():
     """Register tools with the MCP server."""
+    if not rustdesk_service or not rustdesk_tools:
+        raise RuntimeError("RustDesk service or tools not initialized")
+    
+    # Register help tool
+    help_tool_def = help_tool.get_tool_definition()
+    mcp.tool(
+        name=help_tool_def["name"],
+        description=help_tool_def["description"],
+        args_schema=help_tool_def["parameters"]
+    )(help_tool_def["method"])
+    
+    # Register status tool
     @mcp.tool(
         name="get_rustdesk_status",
         description="Get the current status of the RustDesk service",
     )
     async def get_rustdesk_status() -> Dict[str, Any]:
         """Get the current status of the RustDesk service."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
         return await rustdesk_service.get_status()
     
+    # Register connection tools
     @mcp.tool(
         name="connect_to_peer",
         description="Connect to a RustDesk peer",
         args_schema={
             "peer_id": {"type": "string", "description": "ID of the peer to connect to"},
             "password": {"type": "string", "description": "Password for the peer"},
-        },
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
     )
-    async def connect_to_peer(peer_id: str, password: str) -> Dict[str, Any]:
+    async def connect_to_peer(peer_id: str, password: str, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Connect to a RustDesk peer."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
-        return await rustdesk_service.connect(peer_id, password)
+        from .tools import ConnectionRequest
+        request = ConnectionRequest(peer_id=peer_id, password=password, session_id=session_id)
+        return await rustdesk_tools.connect_to_peer(request)
     
     @mcp.tool(
         name="disconnect_peer",
-        description="Disconnect from the current RustDesk session",
-    )
-    async def disconnect_peer() -> Dict[str, Any]:
-        """Disconnect from the current session."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
-        return await rustdesk_service.disconnect()
-    
-    @mcp.tool(
-        name="get_connection_info",
-        description="Get information about the current RustDesk connection",
-    )
-    async def get_connection_info() -> Dict[str, Any]:
-        """Get information about the current connection."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
-        return await rustdesk_service.get_connection_info()
-    
-    @mcp.tool(
-        name="get_performance_metrics",
-        description="Get system performance metrics",
-    )
-    async def get_performance_metrics() -> Dict[str, Any]:
-        """Get system performance metrics."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
-        return await rustdesk_service.get_performance_metrics()
-    
-    @mcp.tool(
-        name="update_rustdesk_config",
-        description="Update RustDesk configuration",
+        description="Disconnect from a RustDesk peer",
         args_schema={
-            "updates": {"type": "object", "description": "Configuration updates to apply"},
-        },
+            "session_id": {"type": "string", "description": "Optional session ID to disconnect. If not provided, disconnects all.", "required": False}
+        }
     )
-    async def update_rustdesk_config(updates: Dict[str, Any]) -> Dict[str, Any]:
-        """Update RustDesk configuration."""
-        if not rustdesk_service:
-            raise RuntimeError("RustDesk service not initialized")
-        return await rustdesk_service.update_config(updates)
+    async def disconnect_peer(session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Disconnect from a RustDesk peer or all peers."""
+        return await rustdesk_tools.disconnect_peer(session_id)
+    
+    # File transfer tools
+    @mcp.tool(
+        name="transfer_file",
+        description="Transfer a file to/from a remote peer",
+        args_schema={
+            "local_path": {"type": "string", "description": "Local file path"},
+            "remote_path": {"type": "string", "description": "Remote file path"},
+            "direction": {"type": "string", "description": "'upload' or 'download' direction", "default": "upload"},
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def transfer_file(local_path: str, remote_path: str, direction: str = "upload", session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Transfer a file to/from a remote peer."""
+        from .tools import FileTransferRequest
+        request = FileTransferRequest(
+            local_path=local_path,
+            remote_path=remote_path,
+            direction=direction,
+            session_id=session_id
+        )
+        return await rustdesk_tools.transfer_file(request)
+    
+    @mcp.tool(
+        name="list_remote_files",
+        description="List files in a remote directory",
+        args_schema={
+            "remote_path": {"type": "string", "description": "Path on the remote system to list", "default": "/"},
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def list_remote_files(remote_path: str = "/", session_id: Optional[str] = None) -> Dict[str, Any]:
+        """List files in a remote directory."""
+        return await rustdesk_tools.list_remote_files(remote_path, session_id)
+    
+    # Screen capture tools
+    @mcp.tool(
+        name="take_screenshot",
+        description="Take a screenshot of the remote desktop",
+        args_schema={
+            "save_path": {"type": "string", "description": "Optional path to save the screenshot", "required": False},
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def take_screenshot(save_path: Optional[str] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Take a screenshot of the remote desktop."""
+        from .tools import ScreenshotRequest
+        request = ScreenshotRequest(save_path=save_path, session_id=session_id)
+        return await rustdesk_tools.take_screenshot(request)
+    
+    @mcp.tool(
+        name="start_recording",
+        description="Start recording the remote desktop session",
+        args_schema={
+            "save_path": {"type": "string", "description": "Optional path to save the recording", "required": False},
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def start_recording(save_path: Optional[str] = None, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Start recording the remote desktop session."""
+        from .tools import RecordingRequest
+        request = RecordingRequest(save_path=save_path, session_id=session_id)
+        return await rustdesk_tools.start_recording(request)
+    
+    @mcp.tool(
+        name="stop_recording",
+        description="Stop the current screen recording",
+        args_schema={
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def stop_recording(session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Stop the current screen recording."""
+        return await rustdesk_tools.stop_recording(session_id)
+    
+    # Monitoring tools
+    @mcp.tool(
+        name="monitor_resources",
+        description="Monitor system resource usage",
+        args_schema={
+            "duration_seconds": {"type": "integer", "description": "Duration to monitor in seconds", "default": 60},
+            "interval": {"type": "number", "description": "Interval between measurements in seconds", "default": 5.0},
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def monitor_resources(duration_seconds: int = 60, interval: float = 5.0, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Monitor system resource usage."""
+        from .tools import MonitoringRequest
+        request = MonitoringRequest(
+            duration_seconds=duration_seconds,
+            interval=interval,
+            session_id=session_id
+        )
+        return await rustdesk_tools.monitor_resources(request)
+    
+    @mcp.tool(
+        name="get_connection_quality",
+        description="Get the current connection quality metrics",
+        args_schema={
+            "session_id": {"type": "string", "description": "Optional session ID for tracking", "required": False}
+        }
+    )
+    async def get_connection_quality(session_id: Optional[str] = None) -> Dict[str, Any]:
+        """Get the current connection quality metrics."""
+        return await rustdesk_tools.get_connection_quality(session_id)
 
 
 # Exception handlers

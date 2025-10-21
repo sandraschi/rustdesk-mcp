@@ -24,28 +24,33 @@ A FastMCP 2.10 compliant server for managing RustDesk remote desktop connections
 ## Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/rustdesk-mcp.git
    cd rustdesk-mcp
    ```
 
 2. Create and activate a virtual environment (recommended):
+
    ```bash
    python -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
 3. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
 
 4. Create a `.env` file based on the example:
+
    ```bash
    cp .env.example .env
    ```
 
 5. Edit the `.env` file with your configuration:
+
    ```env
    # Server Configuration
    HOST=0.0.0.0
@@ -126,6 +131,7 @@ curl -X 'POST' \
 1. Clone the repository
 2. Set up a virtual environment
 3. Install development dependencies:
+
    ```bash
    pip install -r requirements.txt
    pip install -e .
@@ -140,6 +146,7 @@ pytest
 ### Code Style
 
 This project uses:
+
 - **Black** for code formatting
 - **isort** for import sorting
 - **mypy** for static type checking
