@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Tuple
 
+import aiohttp
 import psutil
 from pydantic import BaseModel, Field
 
@@ -22,46 +23,121 @@ logger = logging.getLogger(__name__)
 
 
 class RustDeskService:
-    """Service for interacting with RustDesk."""
+    """Service for interacting with RustDesk via API."""
 
-    def __init__(self, rustdesk_path: Path, config_dir: Path):
+    def __init__(self, rustdesk_path: Optional[Path], config_dir: Optional[Path], api_url: Optional[str] = None, api_key: Optional[str] = None):
         """Initialize the RustDesk service.
-        
+
         Args:
-            rustdesk_path: Path to the RustDesk executable
-            config_dir: Path to the RustDesk config directory
+            rustdesk_path: Path to the RustDesk executable (optional for development)
+            config_dir: Path to the RustDesk config directory (optional for development)
+            api_url: URL of the RustDesk API server (e.g., http://localhost:21114)
+            api_key: API key for authentication (optional)
         """
         self.rustdesk_path = rustdesk_path
         self.config_dir = config_dir
+        self.api_url = api_url or os.getenv("RUSTDESK_API_URL", "http://localhost:21114")
+        self.api_key = api_key or os.getenv("RUSTDESK_API_KEY")
         self.session_manager = SessionManager()
         self.active_recording: Optional[Dict[str, Any]] = None
-        logger.info("RustDesk service initialized with path: %s", rustdesk_path)
+        self.mock_mode = rustdesk_path is None and api_url is None
+        self.http_session: Optional[aiohttp.ClientSession] = None
+
+        if self.mock_mode:
+            logger.warning("RustDesk API not configured - running in mock mode")
+        else:
+            logger.info("RustDesk service initialized with API URL: %s", self.api_url)
+
+    async def _ensure_http_session(self):
+        """Ensure we have an active HTTP session."""
+        if self.http_session is None or self.http_session.closed:
+            self.http_session = aiohttp.ClientSession(
+                headers={"Authorization": f"Bearer {self.api_key}"} if self.api_key else {},
+                timeout=aiohttp.ClientTimeout(total=30)
+            )
+
+    async def _api_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+        """Make an API request to the RustDesk API server."""
+        if self.mock_mode:
+            return {"success": True, "mock": True, "endpoint": endpoint, "data": data}
+
+        await self._ensure_http_session()
+
+        url = f"{self.api_url.rstrip('/')}/{endpoint.lstrip('/')}"
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            if method.upper() == "GET":
+                async with self.http_session.get(url, headers=headers) as response:
+                    result = await response.json()
+                    return {"success": response.status == 200, "data": result, "status": response.status}
+            elif method.upper() == "POST":
+                async with self.http_session.post(url, json=data, headers=headers) as response:
+                    result = await response.json()
+                    return {"success": response.status in [200, 201], "data": result, "status": response.status}
+            elif method.upper() == "DELETE":
+                async with self.http_session.delete(url, headers=headers) as response:
+                    result = await response.json() if response.content_length else {}
+                    return {"success": response.status == 200, "data": result, "status": response.status}
+            else:
+                return {"success": False, "error": f"Unsupported method: {method}"}
+        except Exception as e:
+            logger.exception(f"API request failed: {method} {url}")
+            return {"success": False, "error": str(e)}
+
+    async def close(self):
+        """Close the HTTP session."""
+        if self.http_session and not self.http_session.closed:
+            await self.http_session.close()
 
     async def run_command(
-        self, 
-        args: List[Union[str, Path]], 
+        self,
+        args: List[Union[str, Path]],
         timeout: int = 30
     ) -> Dict[str, Any]:
         """Run a RustDesk command with error handling.
-        
+
         Args:
             args: Command arguments to pass to RustDesk
             timeout: Command timeout in seconds
-            
+
         Returns:
             Dictionary containing command output and status
         """
+        if self.mock_mode:
+            # Mock mode - simulate command responses
+            logger.debug("Mock mode: Running command: %s", " ".join(str(arg) for arg in args))
+            await asyncio.sleep(0.1)  # Simulate command delay
+
+            # Return mock responses based on command
+            cmd_str = " ".join(str(arg) for arg in args)
+            if "--connect" in cmd_str:
+                return {"success": True, "output": {"session_id": str(uuid.uuid4())}}
+            elif "--disconnect" in cmd_str:
+                return {"success": True, "output": {"disconnected": True}}
+            elif "--get-id" in cmd_str:
+                return {"success": True, "output": "123456789"}
+            else:
+                return {"success": False, "error": "Mock mode: Command not supported"}
+
         try:
+            if not self.rustdesk_path:
+                return {"success": False, "error": "RustDesk executable not configured"}
+
             cmd = [str(self.rustdesk_path)] + [str(arg) for arg in args]
             logger.debug("Running command: %s", " ".join(cmd))
-            
+
+            env = os.environ.copy()
+            if self.config_dir:
+                env["RUSTDESK_CONFIG_DIR"] = str(self.config_dir)
+
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                env={"RUSTDESK_CONFIG_DIR": str(self.config_dir)}
+                env=env
             )
-            
+
             try:
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(),
@@ -71,27 +147,27 @@ class RustDeskService:
                 proc.kill()
                 await proc.wait()
                 raise TimeoutError(f"Command timed out after {timeout} seconds")
-                
+
             if proc.returncode != 0:
                 error_msg = stderr.decode().strip()
                 logger.error("Command failed with error: %s", error_msg)
                 raise RuntimeError(f"Command failed: {error_msg}")
-                
+
             output = stdout.decode().strip()
             logger.debug("Command output: %s", output)
-            
+
             try:
                 return {"success": True, "output": json.loads(output) if output else {}}
             except json.JSONDecodeError:
                 return {"success": True, "output": output}
-                
+
         except Exception as e:
             logger.exception("Error running RustDesk command")
             return {"success": False, "error": str(e)}
 
     def is_running(self) -> bool:
         """Check if RustDesk is currently running.
-        
+
         Returns:
             bool: True if RustDesk is running, False otherwise
         """
@@ -99,6 +175,250 @@ class RustDeskService:
             if proc.info['name'] and 'rustdesk' in proc.info['name'].lower():
                 return True
         return False
+
+    def is_installed(self) -> bool:
+        """Check if RustDesk is installed.
+
+        Returns:
+            bool: True if RustDesk executable is found, False otherwise
+        """
+        return self.rustdesk_path is not None and self.rustdesk_path.exists()
+
+    async def get_rustdesk_id(self) -> Dict[str, Any]:
+        """Get the current RustDesk ID.
+
+        Returns:
+            dict: RustDesk ID information
+        """
+        if self.mock_mode:
+            return {"success": True, "id": "MOCK-123456789"}
+
+        result = await self.run_command(["--get-id"])
+        if result.get("success", False):
+            output = result.get("output", "")
+            # Handle different output types
+            if isinstance(output, str):
+                rustdesk_id = output.strip()
+            elif isinstance(output, int):
+                rustdesk_id = str(output)
+            else:
+                rustdesk_id = str(output)
+
+            return {
+                "success": True,
+                "id": rustdesk_id,
+                "method": "cli"
+            }
+        else:
+            return {
+                "success": False,
+                "error": result.get("error", "Failed to get RustDesk ID"),
+                "method": "cli"
+            }
+
+    async def list_active_sessions(self) -> Dict[str, Any]:
+        """List active RustDesk remote desktop sessions via API.
+
+        Returns:
+            dict: Active session information with connection details
+        """
+        if self.mock_mode:
+            return {
+                "success": True,
+                "sessions": [],
+                "count": 0,
+                "methods_used": ["api"],
+                "note": "Only active remote sessions are listed. 'tracked_session' = managed sessions, 'network_detected' = active network connections, 'log_detected' = recent activity from logs. No local processes shown."
+            }
+
+        try:
+            # Get sessions from API
+            api_result = await self._api_request("GET", "/api/sessions")
+
+            if api_result.get("success"):
+                sessions = api_result.get("data", {}).get("sessions", [])
+                return {
+                    "success": True,
+                    "sessions": sessions,
+                    "count": len(sessions),
+                    "methods_used": ["api"],
+                    "note": "Sessions retrieved from RustDesk API server."
+                }
+            else:
+                # Fallback: check our session manager for locally tracked sessions
+                local_sessions = await self.session_manager.list_active_sessions()
+                sessions = []
+                for session in local_sessions:
+                    sessions.append({
+                        "session_id": session.get("id"),
+                        "peer_id": session.get("peer_id"),
+                        "status": session.get("status", "active"),
+                        "started_at": session.get("created_at"),
+                        "connection_type": "tracked_session",
+                        "source": "session_manager"
+                    })
+
+                return {
+                    "success": True,
+                    "sessions": sessions,
+                    "count": len(sessions),
+                    "methods_used": ["session_manager"],
+                    "note": "API unavailable, showing locally tracked sessions only."
+                }
+
+        except Exception as e:
+            logger.exception(f"Failed to list active sessions: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e),
+                "sessions": [],
+                "count": 0
+            }
+
+
+    async def get_address_book(self) -> Dict[str, Any]:
+        """Get RustDesk address book information.
+
+        Returns:
+            dict: Address book data
+        """
+        if self.mock_mode:
+            return {
+                "success": True,
+                "address_book": {
+                    "entries": [],
+                    "count": 0,
+                    "note": "Mock mode - no real address book"
+                }
+            }
+
+        # RustDesk stores address book in config directory
+        if not self.config_dir:
+            return {
+                "success": False,
+                "error": "Config directory not available"
+            }
+
+        address_book_file = self.config_dir / "addrbook.toml"
+        if not address_book_file.exists():
+            return {
+                "success": True,
+                "address_book": {
+                    "entries": [],
+                    "count": 0,
+                    "file_exists": False
+                }
+            }
+
+        try:
+            # Try different possible formats and files
+            possible_files = [
+                self.config_dir / "addrbook.toml",
+                self.config_dir / "address_book.toml",
+                self.config_dir / "peers.json",
+                self.config_dir / "addrbook.json"
+            ]
+
+            data = None
+            used_file = None
+
+            for addr_file in possible_files:
+                if addr_file.exists():
+                    try:
+                        if addr_file.suffix.lower() == '.toml':
+                            import tomllib
+                            with open(addr_file, 'rb') as f:
+                                data = tomllib.load(f)
+                        else:
+                            import json
+                            with open(addr_file, 'r', encoding='utf-8') as f:
+                                data = json.load(f)
+                        used_file = addr_file
+                        break
+                    except Exception:
+                        continue
+
+            if data is None:
+                return {
+                    "success": True,
+                    "address_book": {
+                        "entries": [],
+                        "count": 0,
+                        "file_exists": False,
+                        "note": "No address book file found"
+                    }
+                }
+
+            entries = []
+            peers = data.get('peers', {})
+
+            for peer_id, peer_info in peers.items():
+                if isinstance(peer_info, dict):
+                    entries.append({
+                        "id": str(peer_id),
+                        "alias": peer_info.get('alias', ''),
+                        "note": peer_info.get('note', ''),
+                        "tags": peer_info.get('tags', []),
+                        "last_used": peer_info.get('last_used', None)
+                    })
+                else:
+                    # Handle simple string entries
+                    entries.append({
+                        "id": str(peer_id),
+                        "alias": str(peer_info),
+                        "note": "",
+                        "tags": [],
+                        "last_used": None
+                    })
+
+            return {
+                "success": True,
+                "address_book": {
+                    "entries": entries,
+                    "count": len(entries),
+                    "file_exists": True,
+                    "file_path": str(used_file)
+                }
+            }
+
+        except PermissionError:
+            return {
+                "success": True,
+                "address_book": {
+                    "entries": [],
+                    "count": 0,
+                    "file_exists": True,
+                    "access_denied": True,
+                    "note": "Cannot access address book due to permissions"
+                }
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to read address book: {str(e)}"
+            }
+
+    async def get_detailed_status(self) -> Dict[str, Any]:
+        """Get detailed RustDesk status information.
+
+        Returns:
+            dict: Comprehensive status information
+        """
+        status = await self.get_status()
+
+        # Add additional information
+        if not self.mock_mode:
+            rustdesk_id = await self.get_rustdesk_id()
+            sessions = await self.list_active_sessions()
+            address_book = await self.get_address_book()
+
+            status.update({
+                "rustdesk_id": rustdesk_id,
+                "active_sessions": sessions,
+                "address_book": address_book
+            })
+
+        return status
 
     async def get_status(self) -> Dict[str, Any]:
         """Get the current status of RustDesk.
@@ -123,20 +443,23 @@ class RustDeskService:
 
     async def get_config(self) -> Dict[str, Any]:
         """Get the current RustDesk configuration.
-        
+
         Returns:
             dict: Current configuration
         """
+        if not self.config_dir:
+            return {"error": "No config directory available"}
+
         config_file = self.config_dir / "config"
         if not config_file.exists():
-            return {}
-            
+            return {"status": "config_file_not_found"}
+
         try:
-            with open(config_file, 'r') as f:
+            with open(config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            logger.error("Failed to read RustDesk config: %s", e)
-            return {}
+        except (json.JSONDecodeError, IOError, PermissionError) as e:
+            logger.warning("Failed to read RustDesk config: %s", e)
+            return {"status": "config_read_error", "error": str(e)}
 
     async def update_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update RustDesk configuration.
@@ -157,41 +480,52 @@ class RustDeskService:
         return config
 
     async def connect(self, peer_id: str, password: str) -> Dict[str, Any]:
-        """Connect to a remote peer.
-        
+        """Connect to a remote peer via API.
+
         Args:
             peer_id: ID of the peer to connect to
             password: Password for the peer
-            
+
         Returns:
             dict: Connection result with session information
         """
         # Create a new session
         session = await self.session_manager.create_session(peer_id, password)
-        
+
         try:
-            # Connect using RustDesk CLI
-            result = await self.run_command(["--connect", peer_id, "--password", password])
-            
+            # Connect using API
+            result = await self._api_request("POST", "/api/connect", {
+                "peer_id": peer_id,
+                "password": password
+            })
+
             if result.get("success", False):
                 # Update session status on success
                 await self.session_manager.update_session_status(
-                    session["id"], 
+                    session["id"],
                     "connected",
                     peer_id=peer_id,
                     connected_at=datetime.utcnow().isoformat()
                 )
-                result["session_id"] = session["id"]
+                return {
+                    "success": True,
+                    "session_id": session["id"],
+                    "message": "Connected successfully",
+                    "details": result.get("data", {})
+                }
             else:
                 # Update session status on failure
                 await self.session_manager.update_session_status(
                     session["id"],
                     "connection_failed",
-                    error=result.get("error", "Unknown error")
+                    error=result.get("error", "API connection failed")
                 )
-                
-            return result
-            
+                return {
+                    "success": False,
+                    "error": result.get("error", "Connection failed"),
+                    "session_id": session["id"]
+                }
+
         except Exception as e:
             # Update session status on exception
             await self.session_manager.update_session_status(
@@ -199,7 +533,8 @@ class RustDeskService:
                 "error",
                 error=str(e)
             )
-            raise
+            logger.exception(f"Failed to connect to peer {peer_id}")
+            return {"success": False, "error": str(e), "session_id": session["id"]}
 
     async def disconnect(self, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Disconnect from the current session or a specific session.

@@ -1,4 +1,4 @@
-""
+"""
 Configuration management for RustDeskMCP.
 """
 
@@ -18,9 +18,13 @@ class Config(BaseSettings):
     port: int = Field(8077, env="PORT")
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
-    # RustDesk configuration
-    rustdesk_path: FilePath = Field(..., env="RUSTDESK_PATH")
-    rustdesk_config_dir: DirectoryPath = Field(..., env="RUSTDESK_CONFIG_DIR")
+    # RustDesk configuration (optional for development)
+    rustdesk_path: Optional[FilePath] = Field(None, env="RUSTDESK_PATH")
+    rustdesk_config_dir: Optional[DirectoryPath] = Field(None, env="RUSTDESK_CONFIG_DIR")
+
+    # RustDesk API configuration
+    rustdesk_api_url: Optional[str] = Field(None, env="RUSTDESK_API_URL")
+    rustdesk_api_key: Optional[str] = Field(None, env="RUSTDESK_API_KEY")
     
     # MCP configuration
     mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")
@@ -52,20 +56,73 @@ class Config(BaseSettings):
     
     @field_validator("rustdesk_path", mode="before")
     @classmethod
-    def validate_rustdesk_path(cls, v: str) -> Path:
+    def validate_rustdesk_path(cls, v: Optional[str]) -> Optional[Path]:
         """Validate RustDesk executable path."""
+        if v is None:
+            # Try to auto-detect RustDesk installation
+            default_paths = [
+                r"C:\Program Files\RustDesk\rustdesk.exe",
+                r"C:\Program Files (x86)\RustDesk\rustdesk.exe",
+                r"C:\Users\{}\AppData\Local\RustDesk\rustdesk.exe".format(os.environ.get('USERNAME', '')),
+                r"C:\Users\{}\AppData\Roaming\RustDesk\rustdesk.exe".format(os.environ.get('USERNAME', ''))
+            ]
+
+            for path_str in default_paths:
+                path = Path(path_str).expanduser().resolve()
+                if path.exists():
+                    import logging
+                    logging.getLogger(__name__).info(f"Auto-detected RustDesk at: {path}")
+                    return path
+
+            import logging
+            logging.getLogger(__name__).warning("RustDesk executable not found in default locations")
+            return None
+
         path = Path(v).expanduser().resolve()
         if not path.exists():
-            raise ValueError(f"RustDesk executable not found at: {path}")
+            import logging
+            logging.getLogger(__name__).warning(f"RustDesk executable not found at: {path}")
         return path
-    
+
     @field_validator("rustdesk_config_dir", mode="before")
     @classmethod
-    def validate_rustdesk_config_dir(cls, v: str) -> Path:
+    def validate_rustdesk_config_dir(cls, v: Optional[str]) -> Optional[Path]:
         """Validate RustDesk config directory."""
+        if v is None:
+            # Try to auto-detect RustDesk config directory
+            default_paths = [
+                os.path.expandvars(r"%APPDATA%\RustDesk"),
+                os.path.expandvars(r"%LOCALAPPDATA%\RustDesk"),
+                r"C:\ProgramData\RustDesk",
+            ]
+
+            for path_str in default_paths:
+                path = Path(path_str)
+                if path.exists() and path.is_dir():
+                    import logging
+                    logging.getLogger(__name__).info(f"Auto-detected RustDesk config at: {path}")
+                    return path
+
+            # Create default config directory if none found
+            default_config = Path(os.path.expandvars(r"%APPDATA%\RustDesk"))
+            try:
+                default_config.mkdir(parents=True, exist_ok=True)
+                import logging
+                logging.getLogger(__name__).info(f"Created default RustDesk config directory: {default_config}")
+                return default_config
+            except Exception:
+                import logging
+                logging.getLogger(__name__).warning(f"Could not create default config directory: {default_config}")
+                return None
+
         path = Path(v).expanduser().resolve()
         if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                # Don't fail if we can't create the directory
+                import logging
+                logging.getLogger(__name__).warning(f"Could not create RustDesk config directory: {path}")
         return path
 
 
