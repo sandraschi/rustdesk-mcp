@@ -22,9 +22,17 @@ class Config(BaseSettings):
     rustdesk_path: Optional[FilePath] = Field(None, env="RUSTDESK_PATH")
     rustdesk_config_dir: Optional[DirectoryPath] = Field(None, env="RUSTDESK_CONFIG_DIR")
 
-    # RustDesk API configuration
+    # RustDesk server configuration (direct socket communication)
+    rustdesk_id_server_host: str = Field("127.0.0.1", env="RUSTDESK_ID_SERVER_HOST")
+    rustdesk_id_server_port: int = Field(21116, env="RUSTDESK_ID_SERVER_PORT")
+    rustdesk_relay_server_host: str = Field("127.0.0.1", env="RUSTDESK_RELAY_SERVER_HOST")
+    rustdesk_relay_server_port: int = Field(21117, env="RUSTDESK_RELAY_SERVER_PORT")
+
+    # Legacy API configuration (optional, for compatibility)
     rustdesk_api_url: Optional[str] = Field(None, env="RUSTDESK_API_URL")
     rustdesk_api_key: Optional[str] = Field(None, env="RUSTDESK_API_KEY")
+    rustdesk_api_username: str = Field("admin", env="RUSTDESK_API_USERNAME")
+    rustdesk_api_password: str = Field("vAw7I4V9", env="RUSTDESK_API_PASSWORD")
     
     # MCP configuration
     mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")

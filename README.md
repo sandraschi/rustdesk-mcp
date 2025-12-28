@@ -9,21 +9,44 @@
 
 ## 🎯 Status: Alpha Release
 
-⚠️ **This is an ALPHA release** - Core functionality works but some features are incomplete.
+⚠️ **This is an ALPHA release** with multiple implementation approaches available.
 
 ### ✅ What's Working (Alpha):
+
+#### **Option 1: Corporate API Integration (Original)**
 - **Infrastructure**: Docker containers running, MCP server connected to API
 - **Core Issue Fixed**: No more process lists masquerading as remote sessions
 - **API Integration**: HTTP calls to `lejianwen/rustdesk-api` instead of non-existent CLI commands
 - **Basic Session Management**: Can list and track sessions (authentication pending)
 
+#### **Option 2: Minimal Socket Communication (NEW)**
+- **Direct Socket Access**: Communicates directly with RustDesk servers via TCP
+- **No Docker Required**: Works with any running RustDesk servers
+- **Minimal Dependencies**: Python + sockets only
+- **Corporate-Free**: Extracts core functionality without enterprise overhead
+
 ### 🚧 In Development (Alpha Limitations):
-- **API Authentication**: JWT token handling needs refinement
+- **API Authentication**: JWT token handling needs refinement (Option 1)
+- **Command Protocol**: Discovering actual RustDesk socket commands (Option 2)
 - **Full Tool Testing**: Not all MCP tools fully tested with real connections
 - **Error Handling**: Some edge cases may not be handled gracefully
 - **Production Readiness**: Not recommended for production use yet
 
-## 🤔 About lejianwen/rustdesk-api
+## 🔀 Implementation Options
+
+This MCP server offers **two approaches** to RustDesk integration:
+
+### Option 1: Corporate API Integration (Default)
+**Full-featured but complex** - Uses `lejianwen/rustdesk-api` management server with Docker infrastructure.
+
+### Option 2: Minimal Socket Communication (Recommended)
+**Simple and direct** - Communicates via TCP sockets without Docker or enterprise features.
+
+See **[README_minimal.md](README_minimal.md)** for the socket implementation details.
+
+---
+
+## 🤔 About lejianwen/rustdesk-api (Option 1)
 
 **Important**: This MCP server integrates with **`lejianwen/rustdesk-api`** - a community-developed management server, NOT official RustDesk APIs (which don't exist).
 
@@ -61,7 +84,28 @@
 
 ## Installation
 
-### Option 1: Full Docker Setup (Recommended)
+### Option 1: Minimal Socket Setup (Recommended)
+**For the socket-based implementation** (no Docker required):
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Configure servers** (optional - defaults to localhost):
+   ```env
+   RUSTDESK_ID_SERVER_HOST=127.0.0.1
+   RUSTDESK_ID_SERVER_PORT=21116
+   RUSTDESK_RELAY_SERVER_HOST=127.0.0.1
+   RUSTDESK_RELAY_SERVER_PORT=21117
+   ```
+
+3. **Run MCP server**:
+   ```bash
+   python -m rustdesk_mcp.mcp_server
+   ```
+
+### Option 2: Full Docker Setup (Corporate)
 
 1. **Clone both repositories:**
    ```bash

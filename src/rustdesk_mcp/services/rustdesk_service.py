@@ -9,7 +9,7 @@ import os
 import subprocess
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union, Tuple
 
@@ -18,6 +18,7 @@ import psutil
 from pydantic import BaseModel, Field
 
 from .session_manager import SessionManager
+from .rustdesk_socket import RustDeskSocketClient
 
 logger = logging.getLogger(__name__)
 
@@ -25,23 +26,50 @@ logger = logging.getLogger(__name__)
 class RustDeskService:
     """Service for interacting with RustDesk via API."""
 
-    def __init__(self, rustdesk_path: Optional[Path], config_dir: Optional[Path], api_url: Optional[str] = None, api_key: Optional[str] = None):
+    def __init__(self, rustdesk_path: Optional[Path], config_dir: Optional[Path],
+                 id_server_host: str = "127.0.0.1", id_server_port: int = 21116,
+                 relay_server_host: str = "127.0.0.1", relay_server_port: int = 21117,
+                 api_url: Optional[str] = None, api_key: Optional[str] = None,
+                 api_username: Optional[str] = None, api_password: Optional[str] = None):
         """Initialize the RustDesk service.
 
         Args:
             rustdesk_path: Path to the RustDesk executable (optional for development)
             config_dir: Path to the RustDesk config directory (optional for development)
             api_url: URL of the RustDesk API server (e.g., http://localhost:21114)
-            api_key: API key for authentication (optional)
+            api_key: API key for authentication (optional, will use login if not provided)
+            api_username: Username for API login (default: admin)
+            api_password: Password for API login (default: from logs)
         """
         self.rustdesk_path = rustdesk_path
         self.config_dir = config_dir
-        self.api_url = api_url or os.getenv("RUSTDESK_API_URL", "http://localhost:21114")
+
+        # Socket client configuration (primary interface)
+        self.id_server_host = id_server_host
+        self.id_server_port = id_server_port
+        self.relay_server_host = relay_server_host
+        self.relay_server_port = relay_server_port
+
+        # API configuration (optional fallback)
+        self.api_url = api_url or os.getenv("RUSTDESK_API_URL")
         self.api_key = api_key or os.getenv("RUSTDESK_API_KEY")
+        self.api_username = api_username or os.getenv("RUSTDESK_API_USERNAME", "admin")
+        self.api_password = api_password or os.getenv("RUSTDESK_API_PASSWORD", "vAw7I4V9")
+
         self.session_manager = SessionManager()
         self.active_recording: Optional[Dict[str, Any]] = None
-        self.mock_mode = rustdesk_path is None and api_url is None
+        self.mock_mode = rustdesk_path is None and api_url is None and id_server_host == "127.0.0.1"
         self.http_session: Optional[aiohttp.ClientSession] = None
+        self.jwt_token: Optional[str] = None
+        self.token_expires_at: Optional[datetime] = None
+
+        # Initialize socket client for direct RustDesk server communication
+        self.socket_client = RustDeskSocketClient(
+            id_server_host=id_server_host,
+            id_server_port=id_server_port,
+            relay_server_host=relay_server_host,
+            relay_server_port=relay_server_port
+        )
 
         if self.mock_mode:
             logger.warning("RustDesk API not configured - running in mock mode")
@@ -51,32 +79,46 @@ class RustDeskService:
     async def _ensure_http_session(self):
         """Ensure we have an active HTTP session."""
         if self.http_session is None or self.http_session.closed:
+            # Start with basic headers, auth will be added per request
             self.http_session = aiohttp.ClientSession(
-                headers={"Authorization": f"Bearer {self.api_key}"} if self.api_key else {},
                 timeout=aiohttp.ClientTimeout(total=30)
             )
 
-    async def _api_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    async def _api_request(self, method: str, endpoint: str, data: Optional[Dict] = None, requires_auth: bool = True) -> Dict[str, Any]:
         """Make an API request to the RustDesk API server."""
         if self.mock_mode:
             return {"success": True, "mock": True, "endpoint": endpoint, "data": data}
+
+        # Ensure we have authentication for protected endpoints
+        if requires_auth and not await self._ensure_authenticated():
+            return {"success": False, "error": "Authentication failed", "status": 401}
 
         await self._ensure_http_session()
 
         url = f"{self.api_url.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = {"Content-Type": "application/json"}
 
+        # Add JWT token if we have one and auth is required
+        if requires_auth and self.jwt_token:
+            headers["Authorization"] = f"Bearer {self.jwt_token}"
+
         try:
             if method.upper() == "GET":
                 async with self.http_session.get(url, headers=headers) as response:
+                    if response.status == 404:
+                        return {"success": False, "error": "Endpoint not found", "status": 404}
                     result = await response.json()
                     return {"success": response.status == 200, "data": result, "status": response.status}
             elif method.upper() == "POST":
                 async with self.http_session.post(url, json=data, headers=headers) as response:
+                    if response.status == 404:
+                        return {"success": False, "error": "Endpoint not found", "status": 404}
                     result = await response.json()
                     return {"success": response.status in [200, 201], "data": result, "status": response.status}
             elif method.upper() == "DELETE":
                 async with self.http_session.delete(url, headers=headers) as response:
+                    if response.status == 404:
+                        return {"success": False, "error": "Endpoint not found", "status": 404}
                     result = await response.json() if response.content_length else {}
                     return {"success": response.status == 200, "data": result, "status": response.status}
             else:
@@ -84,6 +126,60 @@ class RustDeskService:
         except Exception as e:
             logger.exception(f"API request failed: {method} {url}")
             return {"success": False, "error": str(e)}
+
+    async def _login(self) -> bool:
+        """Login to the API server and get JWT token."""
+        if self.mock_mode:
+            return True
+
+        await self._ensure_http_session()
+
+        login_data = {
+            "username": self.api_username,
+            "password": self.api_password,
+            "autoLogin": False,
+            "deviceInfo": {
+                "name": "RustDesk MCP Server",
+                "os": "Windows",
+                "type": "server"
+            }
+        }
+
+        try:
+            url = f"{self.api_url.rstrip('/')}/api/login"
+            async with self.http_session.post(url, json=login_data) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    if "access_token" in result:
+                        self.jwt_token = result["access_token"]
+                        # Token expires in 168 hours (7 days) according to config
+                        self.token_expires_at = datetime.utcnow() + timedelta(hours=168)
+                        logger.info("Successfully logged in to RustDesk API")
+                        return True
+                    else:
+                        logger.error(f"Login failed: No access_token in response: {result}")
+                        return False
+                else:
+                    error_text = await response.text()
+                    logger.error(f"Login failed with status {response.status}: {error_text}")
+                    return False
+        except Exception as e:
+            logger.exception(f"Login request failed: {e}")
+            return False
+
+    async def _ensure_authenticated(self) -> bool:
+        """Ensure we have a valid JWT token."""
+        if self.mock_mode:
+            return True
+
+        # Check if we have a token and it's not expired
+        if self.jwt_token and self.token_expires_at:
+            # Refresh token if it expires within 1 hour
+            if datetime.utcnow() + timedelta(hours=1) < self.token_expires_at:
+                return True
+
+        # Try to login/get new token
+        return await self._login()
 
     async def close(self):
         """Close the HTTP session."""
@@ -232,39 +328,102 @@ class RustDeskService:
             }
 
         try:
-            # Get sessions from API
-            api_result = await self._api_request("GET", "/api/sessions")
+            # PRIMARY: Try direct socket communication with RustDesk servers
+            try:
+                # Test server connectivity first
+                connection_test = self.socket_client.test_connection()
+                if connection_test["id_server"].get("status") == "connected":
+                    # Try to get peer/session information via socket commands
+                    # Note: We need to discover the actual command protocol
+                    # For now, we'll try some basic commands
+                    try:
+                        peers = self.socket_client.list_peers()
+                        sessions = []
 
-            if api_result.get("success"):
-                sessions = api_result.get("data", {}).get("sessions", [])
-                return {
-                    "success": True,
-                    "sessions": sessions,
-                    "count": len(sessions),
-                    "methods_used": ["api"],
-                    "note": "Sessions retrieved from RustDesk API server."
-                }
-            else:
-                # Fallback: check our session manager for locally tracked sessions
-                local_sessions = await self.session_manager.list_active_sessions()
-                sessions = []
-                for session in local_sessions:
-                    sessions.append({
-                        "session_id": session.get("id"),
-                        "peer_id": session.get("peer_id"),
-                        "status": session.get("status", "active"),
-                        "started_at": session.get("created_at"),
-                        "connection_type": "tracked_session",
-                        "source": "session_manager"
-                    })
+                        # Convert peers to session format
+                        for peer in peers:
+                            sessions.append({
+                                "session_id": f"socket_{peer.get('id', 'unknown')}",
+                                "peer_id": peer.get("id", "unknown"),
+                                "status": "connected",
+                                "connection_type": "direct_socket",
+                                "source": "rustdesk_socket",
+                                "details": peer
+                            })
 
-                return {
-                    "success": True,
-                    "sessions": sessions,
-                    "count": len(sessions),
-                    "methods_used": ["session_manager"],
-                    "note": "API unavailable, showing locally tracked sessions only."
-                }
+                        return {
+                            "success": True,
+                            "sessions": sessions,
+                            "count": len(sessions),
+                            "methods_used": ["socket"],
+                            "note": "Sessions retrieved via direct RustDesk socket communication."
+                        }
+                    except Exception as socket_error:
+                        logger.debug(f"Socket session query failed: {socket_error}")
+
+            except Exception as conn_error:
+                logger.debug(f"Socket connection failed: {conn_error}")
+
+            # FALLBACK 1: Try API server (if configured)
+            if not self.mock_mode and self.api_url:
+                api_result = await self._api_request("GET", "/api/sessions")
+
+                if api_result.get("success"):
+                    sessions = api_result.get("data", {}).get("sessions", [])
+                    return {
+                        "success": True,
+                        "sessions": sessions,
+                        "count": len(sessions),
+                        "methods_used": ["api"],
+                        "note": "Sessions retrieved from RustDesk API server."
+                    }
+                elif api_result.get("status") == 404:
+                    # API doesn't have a sessions endpoint - try audit logs for recent connections
+                    audit_result = await self._api_request("GET", "/api/audit/conn")
+                    if audit_result.get("success"):
+                        # Parse audit logs to extract recent connection info
+                        audit_data = audit_result.get("data", [])
+                        sessions = []
+                        for entry in audit_data[:10]:  # Last 10 connections
+                            if isinstance(entry, dict):
+                                sessions.append({
+                                    "session_id": f"audit_{entry.get('id', 'unknown')}",
+                                    "peer_id": entry.get("peer", "unknown"),
+                                    "status": "historical",
+                                    "last_seen": entry.get("created_at"),
+                                    "connection_type": "audit_log",
+                                    "source": "api_audit",
+                                    "details": entry
+                                })
+
+                        return {
+                            "success": True,
+                            "sessions": sessions,
+                            "count": len(sessions),
+                            "methods_used": ["api_audit"],
+                            "note": "No real-time sessions API available. Showing recent connections from audit logs."
+                        }
+
+            # FALLBACK 2: Check our session manager for locally tracked sessions
+            local_sessions = await self.session_manager.list_active_sessions()
+            sessions = []
+            for session in local_sessions:
+                sessions.append({
+                    "session_id": session.get("id"),
+                    "peer_id": session.get("peer_id"),
+                    "status": session.get("status", "active"),
+                    "started_at": session.get("created_at"),
+                    "connection_type": "tracked_session",
+                    "source": "session_manager"
+                })
+
+            return {
+                "success": True,
+                "sessions": sessions,
+                "count": len(sessions),
+                "methods_used": ["session_manager"],
+                "note": "Direct socket communication unavailable. Showing locally tracked sessions."
+            }
 
         except Exception as e:
             logger.exception(f"Failed to list active sessions: {str(e)}")

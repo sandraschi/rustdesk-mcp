@@ -40,8 +40,14 @@ async def main():
         rustdesk_service = RustDeskService(
             rustdesk_path=config.rustdesk_path,
             config_dir=config.rustdesk_config_dir,
+            id_server_host=config.rustdesk_id_server_host,
+            id_server_port=config.rustdesk_id_server_port,
+            relay_server_host=config.rustdesk_relay_server_host,
+            relay_server_port=config.rustdesk_relay_server_port,
             api_url=config.rustdesk_api_url,
-            api_key=config.rustdesk_api_key
+            api_key=config.rustdesk_api_key,
+            api_username=config.rustdesk_api_username,
+            api_password=config.rustdesk_api_password
         )
         rustdesk_tools = RustDeskTools(rustdesk_service)
 
