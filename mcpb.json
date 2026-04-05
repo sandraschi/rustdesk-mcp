@@ -1,0 +1,36 @@
+{
+    "name": "rustdesk-mcp",
+    "version": "0.1.0",
+    "type": "server",
+    "runtime": "python",
+    "entry_point": "src/rustdesk_mcp/mcp_server.py",
+    "dependencies": [
+        "fastmcp>=2.14.4,<3.0.0"
+    ],
+    "build": {
+        "include": [
+            "src/**/*",
+            "README.md",
+            "LICENSE",
+            "mcpb/manifest.json"
+        ],
+        "exclude": [
+            "tests/",
+            ".git/",
+            "__pycache__/",
+            "*.pyc",
+            ".venv/",
+            "dist/",
+            "build/",
+            "target/",
+            "docs/",
+            "scripts/",
+            "*.dxt"
+        ]
+    },
+    "scripts": {
+        "build": "mcpb build",
+        "pack": "mcpb pack . dist/rustdesk-mcp.mcpb",
+        "test": "python -m pytest"
+    }
+}

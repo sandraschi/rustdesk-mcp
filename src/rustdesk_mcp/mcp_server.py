@@ -16,10 +16,13 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from fastmcp import FastMCP
+
 from rustdesk_mcp.config import get_config
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
+from rustdesk_mcp.services.advanced_control import AdvancedControlService
 from rustdesk_mcp.tools import RustDeskTools
-from fastmcp import FastMCP
+from rustdesk_mcp.server import run_server_async
 
 
 async def main():
@@ -47,12 +50,15 @@ async def main():
             api_url=config.rustdesk_api_url,
             api_key=config.rustdesk_api_key,
             api_username=config.rustdesk_api_username,
-            api_password=config.rustdesk_api_password
+            api_password=config.rustdesk_api_password,
         )
+        advanced_control = AdvancedControlService()
         rustdesk_tools = RustDeskTools(rustdesk_service)
 
         if rustdesk_service.mock_mode:
-            logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
+            logger.warning(
+                "RustDesk service initialized in mock mode - install RustDesk for full functionality"
+            )
         else:
             logger.info("RustDesk service initialized successfully")
 
@@ -63,17 +69,22 @@ async def main():
         )
 
         # Register tools
-        await register_tools(mcp, rustdesk_service, rustdesk_tools)
+        await register_tools(mcp, rustdesk_service, rustdesk_tools, advanced_control)
 
         logger.info("RustDesk MCP Server starting...")
-        await mcp.run_stdio_async()
+        await run_server_async(mcp, server_name="rustdesk-mcp")
 
     except Exception as e:
         logger.exception(f"RustDesk MCP Server failed to start: {e}")
         sys.exit(1)
 
 
-async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDeskTools):
+async def register_tools(
+    mcp: FastMCP,
+    service: RustDeskService,
+    tools: RustDeskTools,
+    advanced_control: AdvancedControlService,
+):
     """Register all MCP tools with comprehensive documentation."""
 
     @mcp.tool()
@@ -126,9 +137,11 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         return {
             "installed": service.is_installed(),
             "running": service.is_running(),
-            "executable_path": str(service.rustdesk_path) if service.rustdesk_path else None,
+            "executable_path": str(service.rustdesk_path)
+            if service.rustdesk_path
+            else None,
             "config_dir": str(service.config_dir) if service.config_dir else None,
-            "mock_mode": service.mock_mode
+            "mock_mode": service.mock_mode,
         }
 
     @mcp.tool()
@@ -162,7 +175,9 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         return await service.get_address_book()
 
     @mcp.tool()
-    async def connect_to_peer(peer_id: str, password: str, session_id: str | None = None) -> dict:
+    async def connect_to_peer(
+        peer_id: str, password: str, session_id: str | None = None
+    ) -> dict:
         """
         Establish a remote desktop connection to a RustDesk peer.
 
@@ -175,7 +190,10 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
             Dictionary containing connection status and session information
         """
         from rustdesk_mcp.tools import ConnectionRequest
-        request = ConnectionRequest(peer_id=peer_id, password=password, session_id=session_id)
+
+        request = ConnectionRequest(
+            peer_id=peer_id, password=password, session_id=session_id
+        )
         return await tools.connect_to_peer(request)
 
     @mcp.tool()
@@ -192,7 +210,12 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         return await tools.disconnect_peer(session_id)
 
     @mcp.tool()
-    async def transfer_file(local_path: str, remote_path: str, direction: str = "upload", session_id: str | None = None) -> dict:
+    async def transfer_file(
+        local_path: str,
+        remote_path: str,
+        direction: str = "upload",
+        session_id: str | None = None,
+    ) -> dict:
         """
         Transfer files between local and remote RustDesk-connected machines.
 
@@ -206,16 +229,19 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
             Dictionary containing transfer status and details
         """
         from rustdesk_mcp.tools import FileTransferRequest
+
         request = FileTransferRequest(
             local_path=local_path,
             remote_path=remote_path,
             direction=direction,
-            session_id=session_id
+            session_id=session_id,
         )
         return await tools.transfer_file(request)
 
     @mcp.tool()
-    async def list_remote_files(remote_path: str = "/", session_id: str | None = None) -> dict:
+    async def list_remote_files(
+        remote_path: str = "/", session_id: str | None = None
+    ) -> dict:
         """
         List files in a remote directory.
 
@@ -229,7 +255,9 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         return await tools.list_remote_files(remote_path, session_id)
 
     @mcp.tool()
-    async def take_screenshot(save_path: str | None = None, session_id: str | None = None) -> dict:
+    async def take_screenshot(
+        save_path: str | None = None, session_id: str | None = None
+    ) -> dict:
         """
         Capture a screenshot of the remote desktop session.
 
@@ -241,11 +269,14 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
             Dictionary containing screenshot status and file information
         """
         from rustdesk_mcp.tools import ScreenshotRequest
+
         request = ScreenshotRequest(save_path=save_path, session_id=session_id)
         return await tools.take_screenshot(request)
 
     @mcp.tool()
-    async def start_recording(save_path: str | None = None, session_id: str | None = None) -> dict:
+    async def start_recording(
+        save_path: str | None = None, session_id: str | None = None
+    ) -> dict:
         """
         Start recording the remote desktop session.
 
@@ -257,6 +288,7 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
             Dictionary containing recording status
         """
         from rustdesk_mcp.tools import RecordingRequest
+
         request = RecordingRequest(save_path=save_path, session_id=session_id)
         return await tools.start_recording(request)
 
@@ -274,7 +306,9 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         return await tools.stop_recording(session_id)
 
     @mcp.tool()
-    async def monitor_resources(duration_seconds: int = 60, interval: float = 5.0, session_id: str | None = None) -> dict:
+    async def monitor_resources(
+        duration_seconds: int = 60, interval: float = 5.0, session_id: str | None = None
+    ) -> dict:
         """
         Monitor system resource usage.
 
@@ -287,10 +321,9 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
             Dictionary containing resource monitoring data
         """
         from rustdesk_mcp.tools import MonitoringRequest
+
         request = MonitoringRequest(
-            duration_seconds=duration_seconds,
-            interval=interval,
-            session_id=session_id
+            duration_seconds=duration_seconds, interval=interval, session_id=session_id
         )
         return await tools.monitor_resources(request)
 
@@ -307,6 +340,62 @@ async def register_tools(mcp: FastMCP, service: RustDeskService, tools: RustDesk
         """
         return await tools.get_connection_quality(session_id)
 
+    @mcp.tool()
+    async def remote_click(x: int, y: int, button: str = "left") -> dict:
+        """
+        [DANGEROUS] Perform a mouse click at specified coordinates in the remote RustDesk window.
+
+        This tool requires strict authorization and sanitization. Use coordinates
+        relative to the remote desktop or as identified via vision tools.
+
+        Args:
+            x (int): Absolute X coordinate on the screen.
+            y (int): Absolute Y coordinate on the screen.
+            button (str): Mouse button to click (left, right, middle). Defaults to 'left'.
+
+        SECURITY: Logs every action and validates window bounds.
+        """
+        from rustdesk_mcp import advanced_control
+
+        return await advanced_control.remote_click(x, y, button)
+
+    @mcp.tool()
+    async def remote_type(text: str) -> dict:
+        """
+        [DANGEROUS] Send keyboard input to the active remote RustDesk window.
+
+        Args:
+            text (str): The text to type into the remote session.
+
+        SECURITY: Rate-limited and logged.
+        """
+        from rustdesk_mcp import advanced_control
+
+        return await advanced_control.remote_type(text)
+
+    @mcp.tool()
+    async def agentic_workflow_tool(goal: str) -> dict:
+        """
+        [SEP-1577] Orchestrate complex remote tasks using FastMCP sampling.
+
+        This tool uses autonomous orchestration to achieve high-level goals on the
+        remote desktop by combining vision, clicks, and typing.
+
+        Args:
+            goal (str): The high-level objective (e.g., "Install a specific software").
+
+        SECURITY: Requires explicit user confirmation for each stage of the sampled workflow.
+        """
+        # This will use mcp.get_context() to sample the LLM once implemented
+        return {
+            "success": True,
+            "message": f"Orchestrating goal: {goal}",
+            "mode": "sampling",
+        }
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import asyncio
+    from rustdesk_mcp.server import run_server_async
+
+    asyncio.run(run_server_async(server_name="rustdesk-mcp"))

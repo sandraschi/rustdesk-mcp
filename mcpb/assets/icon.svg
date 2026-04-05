@@ -1,0 +1,14 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Monitor/Computer Icon -->
+  <rect x="8" y="12" width="48" height="32" rx="4" fill="#2563EB" stroke="#1E40AF" stroke-width="2"/>
+  <!-- Screen -->
+  <rect x="12" y="16" width="40" height="24" rx="2" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="1"/>
+  <!-- Remote Desktop Indicator -->
+  <circle cx="32" cy="28" r="8" fill="#10B981" opacity="0.8"/>
+  <path d="M28 26 L30 28 L36 22" stroke="white" stroke-width="2" fill="none"/>
+  <!-- Connection Lines -->
+  <path d="M16 20 L20 16" stroke="#6B7280" stroke-width="1"/>
+  <path d="M48 20 L44 16" stroke="#6B7280" stroke-width="1"/>
+  <!-- Base -->
+  <rect x="20" y="44" width="24" height="4" rx="2" fill="#374151"/>
+</svg>

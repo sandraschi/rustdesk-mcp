@@ -1,30 +1,17 @@
 {
+  "manifest_version": "0.2",
+  "server": {
+    "type": "python",
+    "entry_point": "src/rustdesk_mcp/__main__.py",
+    "mcp_config": {
+      "command": "python",
+      "args": ["-m", "rustdesk_mcp"]
+  },
   "name": "rustdesk-mcp",
   "version": "0.1.0",
-  "description": "MCP server for RustDesk remote desktop control and management",
+  "description": "FastMCP 2.14.1 server for RustDesk remote desktop control and management",
   "author": "Sandra Schi",
   "license": "MIT",
-  "repository": "https://github.com/sandraschi/rustdeskmcp",
-  "mcp": {
-    "version": "1.0",
-    "server": {
-      "command": "python",
-      "args": ["-m", "rustdesk_mcp"],
-      "env": {}
-    }
-  },
-  "tools": [
-    "connect",
-    "disconnect", 
-    "list_sessions",
-    "send_key",
-    "send_text",
-    "mouse_click",
-    "mouse_move",
-    "screenshot",
-    "file_transfer",
-    "status"
-  ],
   "categories": ["remote-desktop", "automation", "productivity"],
   "keywords": ["rustdesk", "remote-desktop", "mcp", "automation"]
 }

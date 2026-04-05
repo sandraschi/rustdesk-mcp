@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "rustdesk-mcp": {
+      "command": "python",
+      "args": ["-m", "rustdesk_mcp"],
+      "cwd": "D:\\Dev\\repos\\rustdesk-mcp",
+      "env": {
+        "PYTHONPATH": "D:\\Dev\\repos\\rustdesk-mcp\\src",
+        "RUSTDESK_PATH": "C:\\Program Files\\RustDesk\\rustdesk.exe",
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

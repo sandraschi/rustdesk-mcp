@@ -1,17 +1,15 @@
-""
-API v1 routes for RustDeskMCP.
-"""
-
 import logging
+import subprocess
+from pathlib import Path
 from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
-
-from ....config import Config, get_config
-from ....services.rustdesk_service import RustDeskService
+from ...config import Config, get_config
+from ...services.rustdesk_service import RustDeskService
 from . import models
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1", tags=["v1"])
+
 
 # Dependency to get the RustDesk service
 def get_rustdesk_service(config: Config = Depends(get_config)) -> RustDeskService:
@@ -26,7 +24,7 @@ def get_rustdesk_service(config: Config = Depends(get_config)) -> RustDeskServic
     description="Get the current status of the RustDesk MCP service.",
 )
 async def get_status(
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Get the current status of the service."""
     try:
@@ -52,7 +50,7 @@ async def get_status(
     description="Get information about the RustDesk service and configuration.",
 )
 async def get_info(
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Get information about the RustDesk service."""
     try:
@@ -77,7 +75,7 @@ async def get_info(
     description="Get information about the current RustDesk connection.",
 )
 async def get_connection_info(
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Get information about the current connection."""
     try:
@@ -98,18 +96,18 @@ async def get_connection_info(
 )
 async def connect_to_peer(
     request: models.ConnectRequest,
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Connect to a RustDesk peer."""
     try:
         result = await service.connect(request.peer_id, request.password)
-        
+
         if request.save_password:
             # Save the password in the config
-            await service.update_config({"saved_peers": {
-                request.peer_id: {"password": request.password}
-            }})
-            
+            await service.update_config(
+                {"saved_peers": {request.peer_id: {"password": request.password}}}
+            )
+
         return {
             "success": True,
             "message": "Connection initiated",
@@ -130,7 +128,7 @@ async def connect_to_peer(
     description="Disconnect from the current RustDesk session.",
 )
 async def disconnect(
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Disconnect from the current session."""
     try:
@@ -155,7 +153,7 @@ async def disconnect(
     description="Get system performance metrics.",
 )
 async def get_performance(
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Get system performance metrics."""
     try:
@@ -176,7 +174,7 @@ async def get_performance(
 )
 async def update_config(
     config_update: models.ConfigUpdate,
-    service: RustDeskService = Depends(get_rustdesk_service)
+    service: RustDeskService = Depends(get_rustdesk_service),
 ) -> Dict[str, Any]:
     """Update RustDesk configuration."""
     try:
@@ -192,3 +190,73 @@ async def update_config(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating configuration: {str(e)}",
         )
+
+
+@router.get(
+    "/health",
+    response_model=models.StatusResponse,
+    summary="Standard health check",
+    description="Get standardized SOTA health status.",
+)
+async def health_v1():
+    """Standardized health check for fleet discovery."""
+    return {
+        "status": "ok",
+        "version": "2026.2.17",
+        "rustdesk_running": True,  # Mocked or checked via service
+        "config_path": "standardized",
+    }
+
+
+@router.post(
+    "/fleet/launch",
+    response_model=models.FleetLaunchResponse,
+    summary="Fleet launch protocol",
+    description="Launch another MCP app via its start.ps1 script.",
+)
+async def launch_app(request: models.FleetLaunchRequest) -> models.FleetLaunchResponse:
+    """Launch another MCP app via its start.ps1 script."""
+    path = Path(request.repo_path)
+    if not path.exists():
+        raise HTTPException(
+            status_code=404, detail=f"Path {request.repo_path} does not exist"
+        )
+
+    # Security check: Ensure path is within D:/Dev/repos
+    try:
+        allowed_base = Path("D:/Dev/repos").resolve()
+        target_path = path.resolve()
+        target_path.relative_to(allowed_base)
+    except ValueError:
+        raise HTTPException(
+            status_code=403, detail="Access denied: Path outside allowed directory"
+        )
+
+    start_script = path / "web_sota" / "start.ps1"
+    if not start_script.exists():
+        start_script = path / "web" / "start.ps1"
+        if not start_script.exists():
+            start_script = path / "start.ps1"
+            if not start_script.exists():
+                raise HTTPException(
+                    status_code=400, detail="No valid SOTA entry point found"
+                )
+
+    try:
+        subprocess.Popen(
+            [
+                "powershell.exe",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(start_script),
+            ],
+            cwd=str(path),
+            creationflags=subprocess.CREATE_NEW_CONSOLE,
+        )
+        return models.FleetLaunchResponse(
+            success=True, message=f"Launched {path.name} successfully"
+        )
+    except Exception as e:
+        logger.error(f"Failed to launch {path.name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

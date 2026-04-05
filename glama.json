@@ -1,0 +1,42 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["sandraschi"],
+  "name": "rustdesk-mcp",
+  "description": "RustDesk remote desktop control and management. Screen sharing, file transfer, remote monitoring, and session management tools.",
+  "type": "mcp_server",
+  "status": "beta",
+  "framework": "FastMCP 2.13+",
+  "tools": 9,
+  "transport": ["stdio", "http"],
+  "keywords": [
+    "rustdesk",
+    "remote-desktop",
+    "screen-sharing",
+    "file-transfer",
+    "remote-control",
+    "monitoring",
+    "fastmcp"
+  ],
+  "features": {
+    "remote_control": {
+      "enabled": true,
+      "capabilities": ["connect", "disconnect", "session-management"]
+    },
+    "file_operations": {
+      "enabled": true,
+      "features": ["transfer", "remote-file-listing", "synchronization"]
+    },
+    "screen_capture": {
+      "enabled": true,
+      "capabilities": ["screenshots", "screen-recording", "real-time-monitoring"]
+    },
+    "performance_monitoring": {
+      "enabled": true,
+      "metrics": ["resource-usage", "connection-quality", "system-health"]
+    },
+    "security": {
+      "enabled": true,
+      "features": ["encrypted-connections", "access-control", "session-tracking"]
+    }
+  }
+}
