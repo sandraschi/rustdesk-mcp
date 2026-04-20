@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rustdesk-mcp"
 version = "0.1.0"
-description = "FastMCP 2.14.1 server for RustDesk remote desktop management"
+description = "FastMCP 3.1.0 server for RustDesk remote desktop management"
 authors = [
     { name = "Sandra", email = "sandra@example.com" }
 ]

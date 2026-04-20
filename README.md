@@ -1,11 +1,13 @@
 # RustDesk MCP Server
 
+[![FastMCP Version](https://img.shields.io/badge/FastMCP-3.1.0-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/sandraschi/fastmcp) [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff) [![Linted with Biome](https://img.shields.io/badge/Linted_with-Biome-60a5fa?style=flat-square&logo=biome&logoColor=white)](https://biomejs.dev/) [![Built with Just](https://img.shields.io/badge/Built_with-Just-000000?style=flat-square&logo=gnu-bash&logoColor=white)](https://github.com/casey/just)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Status](https://img.shields.io/badge/Status-Alpha-orange.svg)](https://github.com/lejianwen/rustdesk-api)
 [![Version](https://img.shields.io/badge/Version-0.1.0--alpha-blue.svg)]()
 
-**FastMCP 2.14.1 compliant server** for managing RustDesk remote desktop connections via the `lejianwen/rustdesk-api`.
+**FastMCP 3.1.0 compliant server** for managing RustDesk remote desktop connections via the `lejianwen/rustdesk-api`.
 
 ##  Status: Alpha Release
 
@@ -69,7 +71,7 @@ See **[README_minimal.md](README_minimal.md)** for the socket implementation det
 
 ## Features
 
--  **FastMCP 2.14.1 Compliant** - Full compatibility with the latest FastMCP protocol
+-  **FastMCP 3.1.0 Compliant** - Full compatibility with the latest FastMCP protocol
 -  **Remote Desktop Management** - Control RustDesk connections via REST API
 -  **Session Monitoring** - Real-time session status (not process lists)
 -  **Configuration Management** - Update RustDesk settings programmatically
@@ -306,6 +308,17 @@ pytest tests/
 - **Authentication Errors**: Verify API key in .env file
 - **Session Lists Empty**: This is correct - no fake process entries
 
+
+## 🛡️ Industrial Quality Stack
+
+This project adheres to **SOTA 14.1** industrial standards for high-fidelity agentic orchestration:
+
+- **Python (Core)**: [Ruff](https://astral.sh/ruff) for linting and formatting. Zero-tolerance for `print` statements in core handlers (`T201`).
+- **Webapp (UI)**: [Biome](https://biomejs.dev/) for sub-millisecond linting. Strict `noConsoleLog` enforcement.
+- **Protocol Compliance**: Hardened `stdout/stderr` isolation to ensure crash-resistant JSON-RPC communication.
+- **Automation**: [Justfile](./justfile) recipes for all fleet operations (`just lint`, `just fix`, `just dev`).
+- **Security**: Automated audits via `bandit` and `safety`.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -314,7 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **[lejianwen/rustdesk-api](https://github.com/lejianwen/rustdesk-api)** - Community API server that made this possible
 - **[RustDesk](https://rustdesk.com/)** - The open-source remote desktop software
-- **[FastMCP](https://fastmcp.com/)** - The MCP protocol implementation
+- **[FastMCP](https://FastMCP 3.1.0com/)** - The MCP protocol implementation
 
 ---
 
