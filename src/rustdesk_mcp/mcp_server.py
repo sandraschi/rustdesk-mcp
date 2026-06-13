@@ -21,6 +21,7 @@ from fastmcp import FastMCP
 from rustdesk_mcp.config import get_config
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
 from rustdesk_mcp.services.advanced_control import AdvancedControlService
+from rustdesk_mcp.services.wol_service import WolService
 from rustdesk_mcp.tools import RustDeskTools
 from rustdesk_mcp.server import run_server_async
 
@@ -53,6 +54,7 @@ async def main():
             api_password=config.rustdesk_api_password,
         )
         advanced_control = AdvancedControlService()
+        wol_service = WolService()
         rustdesk_tools = RustDeskTools(rustdesk_service)
 
         if rustdesk_service.mock_mode:
@@ -69,7 +71,7 @@ async def main():
         )
 
         # Register tools
-        await register_tools(mcp, rustdesk_service, rustdesk_tools, advanced_control)
+        await register_tools(mcp, rustdesk_service, rustdesk_tools, advanced_control, wol_service)
 
         logger.info("RustDesk MCP Server starting...")
         await run_server_async(mcp, server_name="rustdesk-mcp")
@@ -84,6 +86,7 @@ async def register_tools(
     service: RustDeskService,
     tools: RustDeskTools,
     advanced_control: AdvancedControlService,
+    wol_service: WolService,
 ):
     """Register all MCP tools with comprehensive documentation."""
 
@@ -339,6 +342,40 @@ async def register_tools(
             Dictionary containing connection quality metrics
         """
         return await tools.get_connection_quality(session_id)
+
+    @mcp.tool()
+    async def wake_on_lan(
+        mac_address: str,
+        broadcast_ip: str = "255.255.255.255",
+        port: int = 9,
+        hostname: str | None = None,
+    ) -> dict:
+        """
+        Send a Wake-on-LAN magic packet to wake a sleeping machine on the local network.
+
+        Requires the liaison (always-on mini PC) to be on the same LAN as the target.
+        Goliath must have WOL enabled in BIOS/UEFI and the network driver must allow
+        magic packets to wake the system.
+
+        ## Return Format
+        {"success": bool, "message": str, "mac_address": str}
+
+        ## Examples
+        await wake_on_lan(mac_address="aa:bb:cc:dd:ee:ff", hostname="goliath")
+        await wake_on_lan(mac_address="AA-BB-CC-DD-EE-FF", broadcast_ip="192.168.1.255", port=7)
+
+        Notes:
+            - Default port is 9 (UDP discard). Port 7 (echo) also works on many NICs.
+            - broadcast_ip defaults to 255.255.255.255 (limited broadcast). For
+              cross-subnet, use the specific subnet broadcast (e.g. 192.168.1.255).
+            - MAC address formats: aa:bb:cc:dd:ee:ff, AA-BB-CC-DD-EE-FF, aabb.ccdd.eeff
+            - After sending the packet, wait 30-60s for the target to boot, then
+              use connect_to_peer to establish the RustDesk session.
+        """
+        result = await wol_service.send_magic_packet(mac_address, broadcast_ip, port)
+        if hostname:
+            result["hostname"] = hostname
+        return result
 
     @mcp.tool()
     async def remote_click(x: int, y: int, button: str = "left") -> dict:

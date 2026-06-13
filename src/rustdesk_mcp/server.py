@@ -23,6 +23,7 @@ from fastmcp import FastMCP
 from .auth import authenticate
 from .config import get_config
 from .services.rustdesk_service import RustDeskService
+from .services.wol_service import WolService
 from .tools import RustDeskTools
 from .transport import run_server
 from .web import setup_webapp
@@ -32,18 +33,33 @@ logger = logging.getLogger(__name__)
 # Store the service instances
 rustdesk_service: Optional[RustDeskService] = None
 rustdesk_tools: Optional[RustDeskTools] = None
+wol_service: Optional[WolService] = None
 
 # FastAPI Bridge - Unified with Alexa/Bookmark pattern
-web_app = FastAPI(
-    title="Remote Desktop Web Bridge", dependencies=[Depends(authenticate)]
-)
+web_app = FastAPI(title="Remote Desktop Web Bridge")
 app = web_app  # Alias for exception handlers and __init__ export
+
+
+@web_app.middleware("http")
+async def fleet_public_health(request: Request, call_next):
+    """Unauthenticated health for fleet probes (HTTPBasic on other routes)."""
+    if request.url.path.rstrip("/") == "/health":
+        return JSONResponse(
+            {
+                "status": "ok",
+                "rustdesk_available": rustdesk_service is not None
+                and not rustdesk_service.mock_mode,
+                "mock_mode": rustdesk_service.mock_mode if rustdesk_service else True,
+                "version": "0.1.0",
+            }
+        )
+    return await call_next(request)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown."""
-    global rustdesk_service, rustdesk_tools
+    global rustdesk_service, rustdesk_tools, wol_service
 
     # Startup
     try:
@@ -53,11 +69,12 @@ async def lifespan(app: FastAPI):
         config = get_config()
         logger.info(f"Configuration loaded: {config.host}:{config.port}")
 
-        # Initialize RustDesk service and tools
+        # Initialize services
         rustdesk_service = RustDeskService(
             config.rustdesk_path, config.rustdesk_config_dir
         )
         rustdesk_tools = RustDeskTools(rustdesk_service)
+        wol_service = WolService()
 
         if rustdesk_service.mock_mode:
             logger.warning(
@@ -93,12 +110,13 @@ setup_webapp(web_app, mcp_app=mcp)
 
 async def init_for_stdio() -> None:
     """Initialize service and register tools for STDIO mode (called before run_server)."""
-    global rustdesk_service, rustdesk_tools
+    global rustdesk_service, rustdesk_tools, wol_service
     config = get_config()
     rustdesk_service = RustDeskService(
         config.rustdesk_path, config.rustdesk_config_dir
     )
     rustdesk_tools = RustDeskTools(rustdesk_service)
+    wol_service = WolService()
     if rustdesk_service.mock_mode:
         logger.warning(
             "RustDesk service initialized in mock mode - install RustDesk for full functionality"
@@ -643,6 +661,43 @@ async def register_tools():
         """Get the current connection quality metrics."""
         return await rustdesk_tools.get_connection_quality(session_id)
 
+    # Wake-on-LAN tool
+    @mcp.tool()
+    async def wake_on_lan(
+        mac_address: str,
+        broadcast_ip: str = "255.255.255.255",
+        port: int = 9,
+        hostname: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Send a Wake-on-LAN magic packet to wake a sleeping machine on the local network.
+
+        Requires the liaison (always-on mini PC) to be on the same LAN as the target.
+        Goliath must have WOL enabled in BIOS/UEFI and the network driver must allow
+        magic packets to wake the system.
+
+        ## Return Format
+        {"success": bool, "message": str, "mac_address": str}
+
+        ## Examples
+        await wake_on_lan(mac_address="aa:bb:cc:dd:ee:ff", hostname="goliath")
+        await wake_on_lan(mac_address="AA-BB-CC-DD-EE-FF", broadcast_ip="192.168.1.255", port=7)
+
+        Notes:
+            - Default port is 9 (UDP discard). Port 7 (echo) also works on many NICs.
+            - broadcast_ip defaults to 255.255.255.255 (limited broadcast). For
+              cross-subnet, use the specific subnet broadcast (e.g. 192.168.1.255).
+            - MAC address formats: aa:bb:cc:dd:ee:ff, AA-BB-CC-DD-EE-FF, aabb.ccdd.eeff
+            - After sending the packet, wait 30-60s for the target to boot, then
+              use connect_to_peer to establish the RustDesk session.
+        """
+        if not wol_service:
+            return {"success": False, "message": "WOL service not initialized"}
+        result = await wol_service.send_magic_packet(mac_address, broadcast_ip, port)
+        if hostname:
+            result["hostname"] = hostname
+        return result
+
 
 # Exception handlers
 @app.exception_handler(RequestValidationError)
@@ -666,8 +721,8 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-# Health check endpoint
-@app.get("/health")
+# Health check endpoint (no auth — fleet probe + load balancers)
+@app.get("/health", dependencies=[])
 async def health_check() -> Dict[str, Any]:
     """Health check endpoint."""
     return {
