@@ -34,8 +34,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0px, transparent 50%),
+    background-image: radial-gradient(
+        at 0% 0%,
+        rgba(37, 99, 235, 0.05) 0px,
+        transparent 50%
+      ),
       radial-gradient(at 100% 0%, rgba(29, 78, 216, 0.05) 0px, transparent 50%);
   }
 }
@@ -50,12 +53,13 @@
 }
 
 .neon-border::after {
-  content: '';
+  content: "";
   @apply absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[inherit] opacity-20 blur-sm pointer-events-none;
 }
 
 .neon-glow {
-  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3);
+  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px
+    rgba(59, 130, 246, 0.3);
 }
 
 .text-gradient {

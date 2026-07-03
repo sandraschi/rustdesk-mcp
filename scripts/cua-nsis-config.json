@@ -1,0 +1,14 @@
+{
+    "product_name": "RustDesk MCP",
+    "install_dir": "%LOCALAPPDATA%\\RustDesk MCP",
+    "operator_exe": "rustdesk-mcp-native.exe",
+    "backend_process_names": ["rustdesk-mcp-native", "rustdesk-mcp-backend"],
+    "backend_port": 10805,
+    "health_path": "/api/v1/health",
+    "diagnostics_path": "/api/v1/diagnostics",
+    "feature_smoke_path": "/api/v1/system/info",
+    "window_title_re": "RustDesk MCP",
+    "nsis_glob": "native/target/release/bundle/nsis/RustDesk MCP_*_x64-setup.exe",
+    "bridge_ok_text": "REST bridge reachable",
+    "uninstall_registry_filter": "*RustDesk MCP*"
+}
