@@ -26,7 +26,7 @@ async def check_fork_api() -> dict:
 async def check_port(port: int) -> dict:
     """Check if a TCP port is open (hbbs/hbbr)."""
     try:
-        _, writer = await asyncio.wait_for(
+        reader, writer = await asyncio.wait_for(
             asyncio.open_connection("127.0.0.1", port), timeout=2
         )
         writer.close()
@@ -154,13 +154,15 @@ def setup_webapp(app: FastAPI, mcp_app=None):
 
     @app.get("/api/health")
     async def enhanced_health():
-        tool_count = len(mcp_app.list_tools()) if mcp_app else 0
+        tool_count = len(await mcp_app.list_tools()) if mcp_app else 0
+        fork = await check_fork_api()
+        hbbs = await check_port(21117)
         return {
             "status": "ok",
             "server": "rustdesk-mcp",
             "version": "0.1.0",
             "uptime_seconds": int(time.time() - _START_TIME),
             "tool_count": tool_count,
-            "rustdesk_fork_api": await check_fork_api(),
-            "hbbs_running": await check_port(21117),
+            "rustdesk_fork_api": fork,
+            "hbbs_running": hbbs,
         }
