@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   MessageSquare,
   Monitor,
+  Server,
   Settings,
   Wrench,
 } from "lucide-react";
@@ -31,6 +32,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     { href: "/apps", label: "App Hub", icon: Grid },
     { href: "/chat", label: "AI Command", icon: MessageSquare },
     { href: "/tools", label: "MCP Tools", icon: Wrench },
+    { href: "/server-status", label: "Server Status", icon: Server },
     { href: "/skills", label: "Skills", icon: BookOpen },
     { href: "/api-docs", label: "API Docs", icon: Code2 },
     { href: "/control", label: "Control", icon: Joystick },

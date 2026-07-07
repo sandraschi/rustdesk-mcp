@@ -7,6 +7,7 @@ import { Chat } from "@/pages/chat";
 import { Control } from "@/pages/control";
 import { Dashboard } from "@/pages/dashboard";
 import { Help } from "@/pages/help";
+import { ServerStatus } from "@/pages/server-status";
 import { Settings } from "@/pages/settings";
 import { Skills } from "@/pages/skills";
 import { Status } from "@/pages/status";
@@ -25,6 +26,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/status" element={<Status />} />
+          <Route path="/server-status" element={<ServerStatus />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/tools" element={<Tools />} />
