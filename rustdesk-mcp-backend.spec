@@ -8,14 +8,6 @@ a = Analysis(
 excludes=['tkinter','setuptools','pip','wheel','test','tests','unittest','_distutils_hack'],
     noarchive=True,
 )
-import PyInstaller.utils.hooks as h
-import logging as _log
-for p in ['fastapi','uvicorn','pydantic','starlette','httpx']:
-    try:
-        for src_path, dest_name in h.copy_metadata(p):
-            a.datas.append((dest_name, src_path, 'DATA'))
-    except Exception as _e:
-        _log.warning("Metadata copy failed for %s: %s", p, _e)
 # Remove massive binary files from bundled packages
 SKIP = ['torch','playwright','bitsandbytes','llvmlite','pyarrow','pymupdf','grpc','numba','Cython','google','azure','boto3','botocore','matplotlib','PIL','pandas','scipy','sklearn','onnxruntime']
 a.binaries = [b for b in a.binaries if not any(s in b[0].lower() for s in SKIP)]

@@ -38,6 +38,7 @@ foreach ($dir in $frontendDirs) {
     if (Test-Path "$frontend\package.json") {
         Write-Host "-> [2/5] Building frontend ($dir)..." -ForegroundColor Yellow
         Push-Location $frontend
+        $env:Path = "$env:USERPROFILE\.bun\bin;$env:Path"
         bun install --silent 2>$null
 
         Write-Host "  tsc --noEmit..." -ForegroundColor Gray

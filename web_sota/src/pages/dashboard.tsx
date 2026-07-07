@@ -27,6 +27,7 @@ export function Dashboard() {
       const r = await fetch(API_BASE + "/api/health");
       const d = await r.json();
       setHealth(d);
+      forkStatus; // keep in scope
       setError(null);
       retryRef.current = 0;
     } catch (e) {
@@ -157,7 +158,7 @@ export function Dashboard() {
               },
               {
                 label: "Service",
-                value: health?.service || "--",
+                value: health?.server || "--",
                 color: "text-slate-200",
               },
               {

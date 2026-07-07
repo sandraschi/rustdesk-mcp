@@ -6,8 +6,7 @@
     "build": {
         "frontendDist": "../web_sota/dist",
         "devUrl": "http://localhost:10804",
-        "beforeDevCommand": "npm --prefix ../web_sota run dev",
-        "beforeBuildCommand": "pwsh -NoProfile -File ./build.ps1"
+        "beforeDevCommand": "npm --prefix ../web_sota run dev"
     },
     "app": {
         "windows": [
