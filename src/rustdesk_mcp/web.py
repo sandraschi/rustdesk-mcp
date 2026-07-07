@@ -1,3 +1,4 @@
+import asyncio
 import time
 from pathlib import Path
 from fastapi import FastAPI, Depends
@@ -7,6 +8,32 @@ from .auth import authenticate
 from .ai import ai_router
 
 _START_TIME = time.time()
+
+
+async def check_fork_api() -> dict:
+    """Probe the rustdesk++ fork API server."""
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get("http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                if r.status == 200:
+                    return {"available": True, "status": "ok"}
+    except Exception:
+        pass
+    return {"available": False, "status": "unreachable"}
+
+
+async def check_port(port: int) -> dict:
+    """Check if a TCP port is open (hbbs/hbbr)."""
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection("127.0.0.1", port), timeout=2
+        )
+        writer.close()
+        await writer.wait_closed()
+        return {"running": True}
+    except Exception:
+        return {"running": False}
 
 
 def setup_webapp(app: FastAPI, mcp_app=None):
@@ -84,6 +111,47 @@ def setup_webapp(app: FastAPI, mcp_app=None):
             providers["error"] = "discovery failed"
         return {"providers": providers, "provider": "ollama" if providers.get("ollama", {}).get("status") == "available" else None}
 
+    @app.get("/api/status/fork")
+    async def fork_status():
+        """Probe the rustdesk++ fork API server and self-hosted server."""
+        import aiohttp
+        result = {
+            "fork_api": {"status": "unknown"},
+            "hbbs": {"status": "unknown"},
+            "hbbr": {"status": "unknown"},
+            "fork_binary": None,
+        }
+        async with aiohttp.ClientSession() as session:
+            # Check fork API server
+            try:
+                async with session.get("http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                    if r.status == 200:
+                        data = await r.json()
+                        result["fork_api"] = {"status": "available", **data}
+            except Exception:
+                result["fork_api"] = {"status": "unreachable"}
+
+            # Check hbbs (UDP, can't probe easily — check TCP fallback port)
+            try:
+                async with session.get("http://127.0.0.1:21116/", timeout=aiohttp.ClientTimeout(total=1)) as r:
+                    pass
+                result["hbbs"] = {"status": "responding"}
+            except Exception:
+                result["hbbs"] = {"status": "unknown"}
+
+            # Check hbbr
+            try:
+                _, writer = await asyncio.wait_for(
+                    asyncio.open_connection("127.0.0.1", 21117), timeout=2
+                )
+                writer.close()
+                await writer.wait_closed()
+                result["hbbr"] = {"status": "responding"}
+            except Exception:
+                result["hbbr"] = {"status": "unreachable"}
+
+        return result
+
     @app.get("/api/health")
     async def enhanced_health():
         tool_count = len(mcp_app.list_tools()) if mcp_app else 0
@@ -93,4 +161,6 @@ def setup_webapp(app: FastAPI, mcp_app=None):
             "version": "0.1.0",
             "uptime_seconds": int(time.time() - _START_TIME),
             "tool_count": tool_count,
+            "rustdesk_fork_api": await check_fork_api(),
+            "hbbs_running": await check_port(21117),
         }

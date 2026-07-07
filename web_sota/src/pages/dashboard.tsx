@@ -1,15 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, Shield, Wifi, WifiOff, Zap } from "lucide-react";
+import { Activity, Server, Wifi, WifiOff, Zap, Shield } from "lucide-react";
 import { API_BASE } from "@/lib/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function Dashboard() {
   const [health, setHealth] = useState<{
     status: string;
-    service: string;
+    server: string;
     version: string;
     tool_count?: number;
     uptime_seconds?: number;
+    rustdesk_fork_api?: { available: boolean; status: string };
+    hbbs_running?: { running: boolean };
+  } | null>(null);
+  const [forkStatus, setForkStatus] = useState<{
+    fork_api: { status: string };
+    hbbs: { status: string };
+    hbbr: { status: string };
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logCount, setLogCount] = useState(0);
@@ -32,6 +39,10 @@ export function Dashboard() {
 
   useEffect(() => {
     fetchHealth();
+    fetch(API_BASE + "/api/status/fork")
+      .then((r) => r.json())
+      .then(setForkStatus)
+      .catch(() => {});
     fetch(API_BASE + "/api/logs/stats")
       .then((r) => r.json())
       .then((d) => setLogCount(d.total || 0))
@@ -39,19 +50,28 @@ export function Dashboard() {
   }, [fetchHealth]);
 
   const connected = health?.status === "ok";
+  const forkAvail = health?.rustdesk_fork_api?.available;
+  const hbbsOk = health?.hbbs_running?.running;
   const stats = [
     {
-      label: "Backend",
+      label: "API",
       value: connected ? "Online" : "Offline",
       icon: connected ? Wifi : WifiOff,
       color: connected ? "text-emerald-400" : "text-red-400",
       testid: "kpi-backend",
     },
     {
-      label: "Service",
-      value: health?.service || "unknown",
+      label: "Fork API (:10806)",
+      value: forkAvail ? "Online" : "Off",
       icon: Activity,
-      color: "text-blue-400",
+      color: forkAvail ? "text-emerald-400" : "text-slate-500",
+      testid: "kpi-fork-api",
+    },
+    {
+      label: "hbbs/hbbr",
+      value: hbbsOk ? "Running" : "Stopped",
+      icon: Server,
+      color: hbbsOk ? "text-emerald-400" : "text-slate-500",
       testid: "kpi-server",
     },
     {
@@ -67,6 +87,15 @@ export function Dashboard() {
       icon: Zap,
       color: "text-yellow-400",
       testid: "kpi-tools",
+    },
+    {
+      label: "Uptime",
+      value: health?.uptime_seconds != null
+        ? `${Math.floor(health.uptime_seconds / 3600)}h ${Math.floor((health.uptime_seconds % 3600) / 60)}m`
+        : "--",
+      icon: Activity,
+      color: "text-sky-400",
+      testid: "kpi-uptime",
     },
   ];
 
@@ -149,6 +178,8 @@ export function Dashboard() {
                 color: "text-slate-200",
               },
               { label: "Swagger Docs", value: "/docs", color: "text-blue-400" },
+              { label: "Fork API", value: forkAvail ? "Running on :10806" : "Not detected", color: forkAvail ? "text-emerald-400" : "text-slate-500" },
+              { label: "hbbs / hbbr", value: hbbsOk ? "Running on :21116/:21117" : "Not detected", color: hbbsOk ? "text-emerald-400" : "text-slate-500" },
             ].map((row, i) => (
               <div
                 key={i}

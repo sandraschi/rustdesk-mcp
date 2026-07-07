@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This server provides remote desktop management through RustDesk. You can check device status, connect to peers, manage address books, transfer files, capture screenshots, monitor resources, and wake sleeping machines on the LAN.
+This server provides remote desktop management through RustDesk. You can check device status, connect to peers, manage address books, transfer files, capture screenshots, monitor resources, and wake sleeping machines on the LAN. The rustdesk++ fork adds headless file transfer and a self-hosted relay server.
 
 ## Available Tools
 
@@ -19,7 +19,11 @@ This server provides remote desktop management through RustDesk. You can check d
 - `disconnect_peer(session_id?)` -- Disconnect sessions
 
 ### File Transfer
-- `transfer_file(local_path, remote_path, direction="upload", session_id?)` -- Upload/download files
+- `transfer_file(local_path, remote_path, direction="upload", session_id?, peer_id?)` -- Upload/download files
+  - Probes rustdesk++ fork API on :10806 first
+  - Falls back to fork CLI --send-file/--recv-file
+  - Falls back to stock CLI --file-transfer
+  - Returns not_implemented with SCP/SFTP suggestions
 - `list_remote_files(remote_path="/", session_id?)` -- Browse remote directories
 
 ### Screen Capture
@@ -34,17 +38,26 @@ This server provides remote desktop management through RustDesk. You can check d
 ### Network
 - `wake_on_lan(mac_address, broadcast_ip?, port?, hostname?)` -- Wake sleeping machine on LAN
 
+## rustdesk++ Fork Features
+
+The headless file transfer CLI: `rustdesk --send-file <peer_id> <local> <remote>`
+The API server: `rustdesk --api-server 10806` (REST on :10806)
+Self-hosted relay: `start-server.ps1` runs hbbs + hbbr locally
+OAuth login for public server: `rustdesk --login`
+IPC tunnel through active GUI session: `rustdesk --ipc-send <peer_id> <local> <remote>`
+
 ## Best Practices
 
 1. **Always check status first**: Call `get_rustdesk_status()` before any operation to confirm RustDesk is running.
 2. **Session tracking**: Use `session_id` on `connect_to_peer` to track sessions. Close them with `disconnect_peer`.
-3. **File transfers**: Transfer direction must be "upload" (local → remote) or "download" (remote → local). File transfers require RustDesk CLI v1.2.0+ or an API server. Falls back to SCP/SFTP suggestions.
+3. **File transfers**: Transfer direction must be "upload" (local -> remote) or "download" (remote -> local). The fork API provides the best path. Falls back to SCP/SFTP suggestions if fork is unavailable.
 4. **Wake-on-LAN**: After sending a magic packet, wait 30-60 seconds for the target to boot before attempting `connect_to_peer`.
 5. **Monitoring**: `monitor_resources` is stateful -- it runs for the specified duration and returns all samples. Use lower `duration_seconds` for quick checks.
+6. **Self-hosted server**: For headless file transfer without OAuth, run `start-server.ps1` and configure both machines to use 127.0.0.1:21116.
 
 ## Configuration
 
-- `RUSTDESK_PATH` -- Path to rustdesk.exe (auto-detected)
+- `RUSTDESK_PATH` -- Path to rustdesk.exe (auto-detected, prefer fork binary)
 - `RUSTDESK_API_URL` -- Pro API server URL (optional)
-- `RUSTDESK_API_KEY` -- API authentication key
+- `RUSTDESK_FORK_API_PORT` -- Fork API server port (default 10806)
 - `MCP_PORT` -- HTTP transport port (default 10805)
