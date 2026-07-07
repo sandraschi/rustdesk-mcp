@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "SessionStart": [{
+      "matcher": "",
+      "hooks": [{
+        "type": "text",
+        "text": "## Session Context (RustDesk MCP)\n\nYou have access to RustDesk remote desktop management tools.\n\n**Before starting work:**\n1. Check RustDesk status: get_rustdesk_status()\n2. List saved peers: get_address_book()\n3. List active sessions: list_active_sessions()\n\n**Key capabilities:**\n- Connect to remote machines: connect_to_peer(peer_id=\"...\", password=\"...\")\n- Transfer files: transfer_file(local_path=\"...\", remote_path=\"...\")\n- Wake sleeping machines: wake_on_lan(mac_address=\"aa:bb:cc:dd:ee:ff\")\n- Monitor resources: monitor_resources(duration_seconds=30)\n- Get your device ID: get_rustdesk_id()\n\n**At end of work, disconnect sessions:** disconnect_peer()"
+      }]
+    }]
+  }
+}

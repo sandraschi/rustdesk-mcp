@@ -99,5 +99,31 @@ async def connect(remote_id: str, password: str = None):
     return await service.connect_to_peer(remote_id, password)
 
 
+@app.post("/api/control/{action}")
+async def control_action(action: str, body: dict = None):
+    if not service:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+    try:
+        if action == "remote_click":
+            from rustdesk_mcp.services.advanced_control import AdvancedControlService
+            ctrl = AdvancedControlService()
+            result = await ctrl.remote_click(
+                x=body.get("x", 100) if body else 100,
+                y=body.get("y", 100) if body else 100,
+            )
+            return {"success": True, "action": action, "result": result}
+        elif action == "remote_type":
+            text = body.get("text", "") if body else ""
+            from rustdesk_mcp.services.advanced_control import AdvancedControlService
+            ctrl = AdvancedControlService()
+            result = await ctrl.remote_type(text)
+            return {"success": True, "action": action, "result": result}
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown action: {action}")
+    except Exception as e:
+        logger.exception(f"Control action {action} failed")
+        return {"success": False, "error": str(e)}
+
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=10805)

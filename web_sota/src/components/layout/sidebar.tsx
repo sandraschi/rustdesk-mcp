@@ -1,8 +1,10 @@
 import { cn } from "@/common/utils";
 import {
   Activity,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
+  Code2,
   Grid,
   HelpCircle,
   Info,
@@ -29,6 +31,8 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     { href: "/apps", label: "App Hub", icon: Grid },
     { href: "/chat", label: "AI Command", icon: MessageSquare },
     { href: "/tools", label: "MCP Tools", icon: Wrench },
+    { href: "/skills", label: "Skills", icon: BookOpen },
+    { href: "/api-docs", label: "API Docs", icon: Code2 },
     { href: "/control", label: "Control", icon: Joystick },
     { href: "/help", label: "Help", icon: HelpCircle },
     { href: "/about", label: "About", icon: Info },
@@ -43,7 +47,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       )}
     >
       <div className="flex h-16 items-center border-b border-slate-800 px-4">
-        <div className="flex items-center gap-2 font-semibold text-slate-100">
+        <div className="flex items-center gap-2 font-semibold text-slate-100 flex-1">
           <Monitor className="h-6 w-6 text-blue-500" />
           {!collapsed && (
             <span className="animate-in fade-in duration-300">
@@ -51,6 +55,17 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </span>
           )}
         </div>
+        <button
+          onClick={onToggle}
+          className="rounded-md p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors shrink-0"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </button>
       </div>
 
       <nav className="flex-1 space-y-1 p-2">
@@ -75,7 +90,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               />
               {!collapsed && <span>{item.label}</span>}
 
-              {/* Tooltip for collapsed mode */}
               {collapsed && (
                 <div className="absolute left-full ml-2 hidden rounded bg-slate-800 px-2 py-1 text-xs text-white group-hover:block z-50 whitespace-nowrap">
                   {item.label}
@@ -85,22 +99,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           );
         })}
       </nav>
-
-      <div className="border-t border-slate-800 p-2">
-        <button
-          onClick={onToggle}
-          className="flex w-full items-center justify-center rounded-md p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-colors"
-        >
-          {collapsed ? (
-            <ChevronRight className="h-5 w-5" />
-          ) : (
-            <div className="flex items-center w-full">
-              <ChevronLeft className="h-5 w-5 mr-3" />
-              <span>Collapse</span>
-            </div>
-          )}
-        </button>
-      </div>
     </aside>
   );
 }

@@ -1,0 +1,8 @@
+# RustDesk MCP
+
+Remote desktop management via MCP protocol. 16 tools for device status, peer connections, address book management, file transfers, screenshots, recording, resource monitoring, and Wake-on-LAN.
+
+- [Full documentation](llms-full.txt)
+- Port: 10804 (frontend), 10805 (backend)
+- Transport: stdio + HTTP (dual)
+- Framework: FastMCP 3.4+, FastAPI, Tauri 2.0 NSIS

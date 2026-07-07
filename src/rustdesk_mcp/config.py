@@ -15,7 +15,7 @@ class Config(BaseSettings):
 
     # Server configuration
     host: str = Field("0.0.0.0", env="HOST")
-    port: int = Field(8077, env="PORT")
+    port: int = Field(10805, env="PORT")
     log_level: str = Field("INFO", env="LOG_LEVEL")
     
     # RustDesk configuration (optional for development)
@@ -32,7 +32,7 @@ class Config(BaseSettings):
     rustdesk_api_url: Optional[str] = Field(None, env="RUSTDESK_API_URL")
     rustdesk_api_key: Optional[str] = Field(None, env="RUSTDESK_API_KEY")
     rustdesk_api_username: str = Field("admin", env="RUSTDESK_API_USERNAME")
-    rustdesk_api_password: str = Field("vAw7I4V9", env="RUSTDESK_API_PASSWORD")
+    rustdesk_api_password: str = Field("", env="RUSTDESK_API_PASSWORD")
     
     # MCP configuration
     mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")

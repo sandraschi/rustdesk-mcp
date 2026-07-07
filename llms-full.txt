@@ -1,0 +1,137 @@
+# RustDesk MCP -- LLM Documentation
+
+## Overview
+
+RustDesk MCP provides remote desktop management through the MCP protocol. It wraps the RustDesk CLI, socket client, and REST API into a unified tool surface for AI agents. 16 tools cover device status, peer connections, address book management, file transfers, screenshots, recording, resource monitoring, and Wake-on-LAN.
+
+## Architecture
+
+```
+AI Agent (Claude/Cursor/OpenCode)
+    |
+    v
+FastMCP Server (stdio or HTTP on :10805)
+    |
+    +-- RustDeskService (CLI + API + socket hybrid)
+    |       |
+    |       +-- RustDeskSocketClient (TCP to hbbs:21116 / hbbr:21117)
+    |       +-- REST API (JWT auth, optional pro server)
+    |       +-- CLI subprocess (rustdesk.exe --get-id, --connect, etc.)
+    |
+    +-- SessionManager (in-memory session tracking)
+    +-- WolService (Wake-on-LAN magic packets)
+    +-- FastAPI web_app (:10805 -- REST API + health + logging)
+```
+
+## Transport
+
+Dual transport: stdio (Claude Desktop, opencode) or HTTP (Tauri desktop, webapp).
+
+- stdio: `python -m rustdesk_mcp` (default)
+- HTTP: `MCP_TRANSPORT=http MCP_PORT=10805 python -m rustdesk_mcp`
+
+## Tools
+
+### Status & Discovery
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| get_rustdesk_status | READ_ONLY | Service status, connection count, mock mode check |
+| get_detailed_rustdesk_status | READ_ONLY | Local ID, active sessions, address book, network config |
+| check_rustdesk_installation | READ_ONLY | Installation verification, service state, path validation |
+| get_rustdesk_id | READ_ONLY | Local RustDesk ID for incoming connections |
+
+### Connection Management
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| list_active_sessions | READ_ONLY | Active sessions via socket/API/log parsing |
+| get_address_book | READ_ONLY | Saved peer connections from addrbook.toml |
+| connect_to_peer | MUTATING | Connect to a remote machine by ID + password |
+| disconnect_peer | MUTATING | Disconnect a specific session or all sessions |
+
+### File Transfer
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| transfer_file | MUTATING | Upload/download files (CLI + API fallback, may need API server for full support) |
+| list_remote_files | READ_ONLY | List files in remote directory (API server required) |
+
+### Screen Capture
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| take_screenshot | MUTATING | Capture remote desktop screenshot (CLI v1.2.0+ or API server) |
+| start_recording | MUTATING | Start remote session recording (GUI-only, not supported via CLI) |
+| stop_recording | MUTATING | Stop current recording |
+
+### Monitoring
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| monitor_resources | READ_ONLY | CPU/memory/disk/network sampling over time (psutil) |
+| get_connection_quality | READ_ONLY | System-level network metrics (psutil) |
+
+### Network
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| wake_on_lan | MUTATING | Send magic packet to wake sleeping machine on LAN |
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| RUSTDESK_PATH | auto-detect | Path to rustdesk.exe |
+| RUSTDESK_CONFIG_DIR | auto-detect | Config directory (addrbook, config) |
+| RUSTDESK_API_URL | (none) | Pro API server URL for REST operations |
+| RUSTDESK_API_KEY | (none) | API key for authentication |
+| RUSTDESK_API_USERNAME | admin | API username |
+| RUSTDESK_API_PASSWORD | (none) | API password |
+| MCP_TRANSPORT | stdio | stdio or http |
+| MCP_PORT | 10805 | HTTP port |
+| MCP_HOST | 127.0.0.1 | HTTP host |
+
+## Known Limitations
+
+- **File transfer**: Requires RustDesk CLI v1.2.0+ with `--file-transfer` flag, or a configured API server. Falls back to `not_implemented` with SCP/SFTP suggestions.
+- **Screen recording**: RustDesk CLI does not expose recording controls. Use the GUI.
+- **Connection quality**: Uses system-level psutil metrics, not RustDesk's internal quality stats.
+- **Remote file listing**: Requires the RustDesk API server (pro version).
+- **Screenshots**: Requires RustDesk CLI v1.2.0+ or API server.
+
+## Webapp
+
+React 19 + TypeScript + Vite 7 + Tailwind 3 on port 10804. Pages:
+
+- Dashboard (health KPIs with exponential backoff retry, data-testid attributes, version/uptime)
+- Chat (4 personalities, skill-based preprompt fetched from /api/skills, streaming response, TTS SpeakButton, STT MicButton, localStorage persistence via Zustand, export .txt)
+- Skills (live skill browser with markdown content from backend)
+- API Docs (Swagger UI / ReDoc toggle, quick-ref endpoint strip, iframe embed)
+- Status (connection telemetry)
+- Apps Hub (fleet app discovery -- live port scan across 25+ ports)
+- MCP Tools (dynamic tool discovery from /api/tools, annotation badges, expandable drill-down)
+- Control (remote click/type wired to POST /api/control/, security guard toggle)
+- Logging (ring-buffer log viewer with filter/search/export)
+- Settings (LLM provider/model configuration)
+- Help (quick start, security, MCP parameters)
+
+## Tool Annotations
+
+All tools are annotated with READ_ONLY ({"readonly": True}) or MUTATING ({}):
+- READ_ONLY: get_rustdesk_status, get_detailed_rustdesk_status, check_rustdesk_installation, get_rustdesk_id, list_active_sessions, get_address_book, list_remote_files, monitor_resources, get_connection_quality
+- MUTATING: connect_to_peer, disconnect_peer, transfer_file, take_screenshot, start_recording, stop_recording, wake_on_lan
+
+## Known Limitations
+
+- **File transfer**: Requires RustDesk CLI v1.2.0+ with --file-transfer flag, or a configured API server. Falls back to not_implemented with SCP/SFTP suggestions and error_type field.
+- **Screen recording**: RustDesk CLI does not expose recording controls. Use the GUI. Returns not_implemented with suggestions.
+- **Connection quality**: Uses system-level psutil metrics, not RustDesk's internal quality stats.
+- **Remote file listing**: Requires the RustDesk API server (pro version).
+- **Screenshots**: Requires RustDesk CLI v1.2.0+ or API server.
+
+## Build & Distribution
+
+- **Native**: Tauri 2.0 NSIS installer (`native/build.ps1` -- `just build-native`)
+- **MCPB**: `.mcpb` bundle for Claude Desktop (`manifest.json`, `mcpb.json`)
+- **Dev**: `uv run python -m rustdesk_mcp` (stdio) or `start.ps1` (full stack)

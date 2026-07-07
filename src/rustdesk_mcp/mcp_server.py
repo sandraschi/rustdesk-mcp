@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-MCP Server entry point for RustDesk MCP.
+MCP Server entry point for RustDesk MCP (secondary — primary is server.py:main).
 
 This is the FastMCP 2.14.1 compliant server entry point that should be used
-by MCP clients and integrations.
+by MCP clients and integrations. Includes advanced control tools not in server.py.
 """
 
 import asyncio
@@ -12,7 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-# Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -24,6 +23,9 @@ from rustdesk_mcp.services.advanced_control import AdvancedControlService
 from rustdesk_mcp.services.wol_service import WolService
 from rustdesk_mcp.tools import RustDeskTools
 from rustdesk_mcp.server import run_server_async
+
+_READ_ONLY = {"readonly": True}
+_MUTATING = {}
 
 
 async def main():

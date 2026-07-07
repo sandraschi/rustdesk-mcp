@@ -29,6 +29,7 @@ class FileTransferRequest(BaseModel):
     remote_path: str = Field(..., description="Remote file path")
     direction: str = Field("upload", description="'upload' or 'download'")
     session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
+    peer_id: Optional[str] = Field(None, description="RustDesk peer ID for the remote machine")
 
 
 class ScreenshotRequest(BaseModel):
@@ -140,7 +141,8 @@ class RustDeskTools:
             result = await self.rustdesk.transfer_file(
                 local_path=request.local_path,
                 remote_path=request.remote_path,
-                direction=request.direction
+                direction=request.direction,
+                peer_id=request.peer_id,
             )
             
             # Update session if we have a session ID

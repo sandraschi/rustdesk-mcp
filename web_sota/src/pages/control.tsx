@@ -10,18 +10,33 @@ import {
   Shield,
   ShieldAlert,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { API_BASE } from "@/lib/api";
 
 export function Control() {
   const [securityApproval, setSecurityApproval] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
-  const [isAutonomous, setIsAutonomous] = useState(false);
+  const [actionStatus, setActionStatus] = useState<"idle" | "working" | "ok" | "fail">("idle");
 
-  const handleAction = (action: string) => {
+  const handleAction = useCallback(async (action: string) => {
     if (!securityApproval) return;
     setLastAction(action);
-    // In a real app, this would call the Backend Bridge
-  };
+    setActionStatus("working");
+    try {
+      const r = await fetch(`${API_BASE}/api/control/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x: 100, y: 100, text: "" }),
+      });
+      if (r.ok) {
+        setActionStatus("ok");
+      } else {
+        setActionStatus("fail");
+      }
+    } catch {
+      setActionStatus("fail");
+    }
+  }, [securityApproval]);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -52,7 +67,6 @@ export function Control() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {/* Security Mode Card */}
         <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-6 transition-all hover:bg-slate-900 hover:shadow-2xl hover:shadow-blue-500/10">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-blue-500/10 p-3 text-blue-400 group-hover:scale-110 transition-transform">
@@ -87,13 +101,11 @@ export function Control() {
             </div>
             <p className="text-xs text-slate-500 bg-slate-950/50 p-3 rounded border border-slate-800/50">
               When enabled, you authorize the AI to perform clicks and typing
-              actions. All actions are logged and subject to coordinate
-              sanitization.
+              actions in the active RustDesk window. All actions are logged.
             </p>
           </div>
         </div>
 
-        {/* Agentic Workflow Card */}
         <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-6 transition-all hover:bg-slate-900 hover:shadow-2xl hover:shadow-purple-500/10">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-purple-500/10 p-3 text-purple-400 group-hover:scale-110 transition-transform">
@@ -109,28 +121,23 @@ export function Control() {
           <div className="mt-6">
             <button
               disabled={!securityApproval}
-              onClick={() => setIsAutonomous(!isAutonomous)}
+              onClick={() => {}}
               className={cn(
                 "w-full rounded-md py-2 px-4 text-sm font-medium transition-all",
                 !securityApproval
                   ? "bg-slate-800 text-slate-500 cursor-not-allowed"
-                  : isAutonomous
-                    ? "bg-purple-600 text-white shadow-lg shadow-purple-500/20"
-                    : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20",
+                  : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 border border-purple-500/20",
               )}
             >
-              {isAutonomous ? "Stop Orchestration" : "Start Autonomous Mission"}
+              Start Autonomous Mission
             </button>
-            {isAutonomous && (
-              <div className="mt-4 flex animate-pulse items-center gap-2 text-xs text-purple-400">
-                <span className="h-2 w-2 rounded-full bg-purple-400" />
-                Analyzing remote environment...
-              </div>
-            )}
+            <p className="mt-3 text-xs text-slate-500">
+              Autonomous workflows use MCP sampling (ctx.sample) for multi-step reasoning.
+              Requires an LLM host that supports FastMCP sampling.
+            </p>
           </div>
         </div>
 
-        {/* Last Actions Card */}
         <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50 p-6 transition-all hover:bg-slate-900 hover:shadow-2xl hover:shadow-emerald-500/10">
           <div className="flex items-center gap-4">
             <div className="rounded-lg bg-emerald-500/10 p-3 text-emerald-400 group-hover:scale-110 transition-transform">
@@ -147,8 +154,11 @@ export function Control() {
             {lastAction ? (
               <div className="flex items-center justify-between rounded bg-slate-950/50 p-2 text-xs border border-slate-800/30">
                 <span className="text-slate-300 capitalize">{lastAction}</span>
-                <span className="text-slate-500">
-                  {new Date().toLocaleTimeString()}
+                <span className={cn(
+                  "text-xs",
+                  actionStatus === "ok" ? "text-emerald-400" : actionStatus === "fail" ? "text-red-400" : "text-slate-500"
+                )}>
+                  {actionStatus === "working" ? "..." : actionStatus === "ok" ? "OK" : actionStatus === "fail" ? "Failed" : new Date().toLocaleTimeString()}
                 </span>
               </div>
             ) : (
@@ -160,7 +170,6 @@ export function Control() {
         </div>
       </div>
 
-      {/* Remote Interaction Panel */}
       <div className="rounded-xl border border-slate-800 bg-slate-950/30 p-8 backdrop-blur-sm">
         <div className="flex items-center gap-3 mb-6">
           <Lock className="h-5 w-5 text-slate-500" />
@@ -171,7 +180,7 @@ export function Control() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             onClick={() => handleAction("remote_click")}
-            disabled={!securityApproval}
+            disabled={!securityApproval || actionStatus === "working"}
             className="flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800/50 p-8 text-lg font-medium text-slate-200 transition-all hover:bg-slate-700 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed group"
           >
             <MousePointer2 className="h-6 w-6 text-blue-400 group-hover:scale-110 transition-transform" />
@@ -179,7 +188,7 @@ export function Control() {
           </button>
           <button
             onClick={() => handleAction("remote_type")}
-            disabled={!securityApproval}
+            disabled={!securityApproval || actionStatus === "working"}
             className="flex items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-800/50 p-8 text-lg font-medium text-slate-200 transition-all hover:bg-slate-700 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed group"
           >
             <Keyboard className="h-6 w-6 text-emerald-400 group-hover:scale-110 transition-transform" />

@@ -1,29 +1,42 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Shield, Wifi, WifiOff, Zap } from "lucide-react";
 import { API_BASE } from "@/lib/api";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function Dashboard() {
   const [health, setHealth] = useState<{
     status: string;
     service: string;
+    version: string;
+    tool_count?: number;
+    uptime_seconds?: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logCount, setLogCount] = useState(0);
+  const retryRef = useRef(0);
+
+  const fetchHealth = useCallback(async () => {
+    try {
+      const r = await fetch(API_BASE + "/api/health");
+      const d = await r.json();
+      setHealth(d);
+      setError(null);
+      retryRef.current = 0;
+    } catch (e) {
+      setError(String(e));
+      const delay = Math.min(1000 * Math.pow(2, retryRef.current), 16000);
+      retryRef.current++;
+      setTimeout(fetchHealth, delay);
+    }
+  }, []);
 
   useEffect(() => {
-    fetch(API_BASE + "/api/health")
-      .then((r) => r.json())
-      .then((d) => {
-        setHealth(d);
-        setError(null);
-      })
-      .catch((e) => setError(String(e)));
+    fetchHealth();
     fetch(API_BASE + "/api/logs/stats")
       .then((r) => r.json())
       .then((d) => setLogCount(d.total || 0))
       .catch(() => {});
-  }, []);
+  }, [fetchHealth]);
 
   const connected = health?.status === "ok";
   const stats = [
@@ -32,35 +45,40 @@ export function Dashboard() {
       value: connected ? "Online" : "Offline",
       icon: connected ? Wifi : WifiOff,
       color: connected ? "text-emerald-400" : "text-red-400",
+      testid: "kpi-backend",
     },
     {
       label: "Service",
-      value: health?.service?.replace("-backend", "") || "unknown",
+      value: health?.service || "unknown",
       icon: Activity,
       color: "text-blue-400",
+      testid: "kpi-server",
     },
     {
       label: "Log Entries",
       value: String(logCount),
       icon: Shield,
       color: "text-purple-400",
+      testid: "kpi-logs",
     },
     {
-      label: "Status",
-      value: error ? "Error" : "Healthy",
+      label: "Tools",
+      value: health?.tool_count != null ? String(health.tool_count) : "--",
       icon: Zap,
-      color: error ? "text-red-400" : "text-yellow-400",
+      color: "text-yellow-400",
+      testid: "kpi-tools",
     },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-testid="dashboard">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-white">
             RustDesk MCP
           </h2>
           <p className="text-slate-400">
+            {health?.version ? `v${health.version} -- ` : ""}
             Remote desktop management and monitoring
           </p>
         </div>
@@ -69,14 +87,15 @@ export function Dashboard() {
         >
           <span
             className={`w-2 h-2 rounded-full ${connected ? "bg-emerald-400 animate-pulse" : "bg-red-400"}`}
+            data-testid="backend-dot"
           />
-          {connected ? "API Online" : "Disconnected"}
+          {connected ? "API Online" : error ? "Offline" : "Connecting..."}
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat, idx) => (
-          <Card key={idx} className="bg-slate-950/50 border-slate-800">
+          <Card key={idx} className="bg-slate-950/50 border-slate-800" data-testid={stat.testid}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-slate-200">
                 {stat.label}
@@ -109,7 +128,14 @@ export function Dashboard() {
               },
               {
                 label: "Service",
-                value: health?.service || "—",
+                value: health?.service || "--",
+                color: "text-slate-200",
+              },
+              {
+                label: "Uptime",
+                value: health?.uptime_seconds != null
+                  ? `${Math.floor(health.uptime_seconds / 3600)}h ${Math.floor((health.uptime_seconds % 3600) / 60)}m`
+                  : "--",
                 color: "text-slate-200",
               },
               {
@@ -119,7 +145,7 @@ export function Dashboard() {
               },
               {
                 label: "MCP Tools",
-                value: "Available on MCP port",
+                value: health?.tool_count != null ? `${health.tool_count} registered` : "Available on MCP port",
                 color: "text-slate-200",
               },
               { label: "Swagger Docs", value: "/docs", color: "text-blue-400" },

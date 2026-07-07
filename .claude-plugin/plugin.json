@@ -1,0 +1,6 @@
+{
+  "name": "rustdesk-mcp",
+  "version": "0.1.0",
+  "description": "Session context injection for RustDesk MCP tools",
+  "hooks": "../hooks/hooks.json"
+}

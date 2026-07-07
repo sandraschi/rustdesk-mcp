@@ -833,56 +833,280 @@ class RustDeskService:
         }
 
     async def transfer_file(
-        self, local_path: str, remote_path: str, direction: str = "upload"
+        self, local_path: str, remote_path: str, direction: str = "upload",
+        peer_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Transfer files to/from remote peer."""
+        """Transfer files to/from remote peer via RustDesk protocol.
+
+        Attempts rustdesk++ fork API (--api-server :10806) first,
+        then CLI --file-transfer, then API, then socket.
+        """
+        if self.mock_mode:
+            return {
+                "success": False,
+                "error": "File transfer unavailable in mock mode",
+                "error_type": "not_implemented",
+                "suggestions": [
+                    "Install RustDesk for real file transfer",
+                    "Use SCP/SFTP as alternative",
+                    "Configure RUSTDESK_PATH env var",
+                ],
+            }
+
+        # Try rustdesk++ fork API server first
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "http://127.0.0.1:10806/api/v1/file/upload",
+                    json={"peer_id": direction == "upload" and "remote" or "local",
+                          "local_path": local_path,
+                          "remote_path": remote_path,
+                          "direction": direction},
+                    timeout=aiohttp.ClientTimeout(total=10),
+                ) as r:
+                    if r.status == 200:
+                        data = await r.json()
+                        if data.get("success"):
+                            return {
+                                "success": True,
+                                "message": f"File {direction} completed via fork API",
+                                "data": data,
+                            }
+        except (aiohttp.ClientError, asyncio.TimeoutError, Exception):
+            pass
+
+        # Try fork CLI --send-file / --recv-file
+        rustdesk_exe = str(self.rustdesk_path) if self.rustdesk_path else ""
+        if rustdesk_exe:
+            try:
+                cmd = [rustdesk_exe]
+                if direction == "upload":
+                    cmd.extend(["--send-file", peer_id, local_path, remote_path])
+                else:
+                    cmd.extend(["--recv-file", peer_id, remote_path, local_path])
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+                )
+                try:
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+                    if proc.returncode == 0:
+                        return {"success": True, "message": f"File {direction} via fork CLI", "output": stdout.decode()}
+                except asyncio.TimeoutError:
+                    proc.kill()
+            except Exception:
+                pass
+
+        # Try RustDesk CLI --file-transfer argument
+                result = await self.run_command(args, timeout=120)
+                if result.get("success", False):
+                    return {
+                        "success": True,
+                        "message": f"File transfer {direction} completed",
+                        "data": {
+                            "local_path": local_path,
+                            "remote_path": remote_path,
+                            "direction": direction,
+                            "method": "cli",
+                        },
+                    }
+                logger.debug(
+                    "CLI file transfer failed: %s", result.get("error", "unknown")
+                )
+            except Exception as e:
+                logger.debug("CLI file transfer exception: %s", e)
+
+        # Try REST API if configured
+        if self.api_url:
+            try:
+                await self._ensure_authenticated()
+                endpoint = "/api/peer/file"
+                data = {
+                    "local_path": local_path,
+                    "remote_path": remote_path,
+                    "direction": direction,
+                }
+                api_result = await self._api_request("POST", endpoint, data)
+                if api_result.get("success", False):
+                    return {
+                        "success": True,
+                        "message": f"File transfer {direction} completed via API",
+                        "data": {
+                            "local_path": local_path,
+                            "remote_path": remote_path,
+                            "direction": direction,
+                            "method": "api",
+                            "api_response": api_result.get("data", {}),
+                        },
+                    }
+                logger.debug(
+                    "API file transfer failed: %s", api_result.get("error", "unknown")
+                )
+            except Exception as e:
+                logger.debug("API file transfer exception: %s", e)
+
         return {
             "success": False,
-            "error": "File transfer is not supported via RustDesk CLI. Please use alternative methods (SCP/SFTP).",
-            "method": "cli",
+            "error": "File transfer not available — RustDesk CLI file-transfer not supported in this version",
+            "error_type": "not_implemented",
+            "method": "none",
+            "suggestions": [
+                "Use SCP/SFTP between the two machines",
+                "Use RustDesk GUI to drag-and-drop files between windows",
+                "Ensure RustDesk CLI is v1.2.0+ for --file-transfer support",
+                "Configure RUSTDESK_API_URL for API-based transfer",
+            ],
         }
 
     async def list_remote_files(self, remote_path: str = "/") -> Dict[str, Any]:
         """List files in remote directory."""
+        if self.mock_mode:
+            return {
+                "success": False,
+                "error": "Remote file listing unavailable in mock mode",
+                "error_type": "not_implemented",
+                "suggestions": ["Install RustDesk for real functionality"],
+            }
+        # Try API if configured
+        if self.api_url:
+            try:
+                await self._ensure_authenticated()
+                api_result = await self._api_request(
+                    "GET", f"/api/peer/files?path={remote_path}"
+                )
+                if api_result.get("success", False):
+                    return {
+                        "success": True,
+                        "data": api_result.get("data", {}),
+                        "method": "api",
+                    }
+            except Exception as e:
+                logger.debug("API file listing failed: %s", e)
         return {
             "success": False,
-            "error": "Remote file listing is not supported via RustDesk CLI.",
-            "method": "cli",
+            "error": "Remote file listing requires RustDesk API server (pro version)",
+            "error_type": "not_implemented",
+            "method": "none",
+            "suggestions": [
+                "Configure RUSTDESK_API_URL to a RustDesk API server",
+                "Use SSH/SFTP to browse remote files",
+            ],
         }
 
     async def take_screenshot(self, save_path: Optional[str] = None) -> Dict[str, Any]:
         """Capture screenshot of remote desktop."""
+        if self.mock_mode:
+            return {
+                "success": False,
+                "error": "Screenshot capture unavailable in mock mode",
+                "error_type": "not_implemented",
+                "suggestions": ["Install RustDesk for real functionality"],
+            }
+        # Try CLI screenshot if supported
+        if self.rustdesk_path and self.rustdesk_path.exists():
+            try:
+                args = ["--screenshot"]
+                if save_path:
+                    args.extend(["--output", save_path])
+                result = await self.run_command(args, timeout=30)
+                if result.get("success", False):
+                    return {
+                        "success": True,
+                        "message": "Screenshot captured",
+                        "data": {
+                            "save_path": save_path or "(auto-named)",
+                            "method": "cli",
+                        },
+                    }
+            except Exception as e:
+                logger.debug("CLI screenshot failed: %s", e)
         return {
             "success": False,
-            "error": "Remote screenshot capture is not supported via RustDesk CLI. Consider using 'mss' for local capture.",
-            "method": "cli",
+            "error": "Screenshot capture requires RustDesk CLI v1.2.0+ or API server",
+            "error_type": "not_implemented",
+            "method": "none",
+            "suggestions": [
+                "Update RustDesk to latest version",
+                "Use RustDesk GUI to capture screenshots manually",
+                "Configure RUSTDESK_API_URL for API-based screenshot",
+            ],
         }
 
     async def start_screen_recording(
         self, save_path: Optional[str] = None
     ) -> Dict[str, Any]:
         """Start recording the remote desktop session."""
+        if self.mock_mode:
+            return {
+                "success": False,
+                "error": "Recording unavailable in mock mode",
+                "error_type": "not_implemented",
+                "suggestions": ["Install RustDesk for real functionality"],
+            }
         return {
             "success": False,
-            "error": "Screen recording is not supported via RustDesk CLI.",
-            "method": "cli",
+            "error": "Screen recording is not supported via RustDesk CLI",
+            "error_type": "not_implemented",
+            "method": "none",
+            "suggestions": [
+                "Use RustDesk GUI to start recording manually",
+                "Use OBS Studio or similar tool for screen capture",
+            ],
         }
 
     async def stop_screen_recording(self) -> Dict[str, Any]:
         """Stop the current screen recording."""
+        if self.mock_mode:
+            return {
+                "success": False,
+                "error": "Recording unavailable in mock mode",
+                "error_type": "not_implemented",
+            }
         return {
             "success": False,
-            "error": "Screen recording is not supported via RustDesk CLI.",
-            "method": "cli",
+            "error": "Screen recording is not supported via RustDesk CLI",
+            "error_type": "not_implemented",
+            "method": "none",
+            "suggestions": [
+                "Stop recording via RustDesk GUI",
+            ],
         }
 
     async def get_connection_quality(self) -> Dict[str, Any]:
         """Get detailed connection quality metrics."""
-        return {
-            "success": False,
-            "error": "Connection quality metrics are not supported via RustDesk CLI.",
-            "method": "cli",
-        }
+        if self.mock_mode:
+            return {
+                "success": True,
+                "data": {"latency_ms": 0, "bandwidth_mbps": 0},
+                "note": "Mock mode — no real metrics",
+            }
+        # Use psutil for real network metrics
+        try:
+            net_io = psutil.net_io_counters()
+            return {
+                "success": True,
+                "data": {
+                    "bytes_sent": net_io.bytes_sent,
+                    "bytes_recv": net_io.bytes_recv,
+                    "packets_sent": net_io.packets_sent,
+                    "packets_recv": net_io.packets_recv,
+                    "errors_in": net_io.errin,
+                    "errors_out": net_io.errout,
+                    "drop_in": net_io.dropin,
+                    "drop_out": net_io.dropout,
+                },
+                "note": "System-level network metrics (not per-connection RustDesk quality)",
+                "method": "psutil",
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to get connection quality: {e}",
+                "error_type": "system_error",
+                "suggestions": [
+                    "Ensure psutil is installed",
+                    "Check network adapter status",
+                ],
+            }
 
     async def monitor_resource_usage(
         self, duration_seconds: int = 60, interval: float = 5.0

@@ -1,351 +1,145 @@
-# RustDesk MCP Server
+# RustDesk MCP
 
-<p align="center">
-  <a href="https://github.com/casey/just"><img src="https://img.shields.io/badge/just-ready_to_go-7c5cfc?style=flat-square&logo=just&logoColor=white" alt="Just"></a>
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
-  <a href="https://python.org"><img src="https://img.shields.io/badge/Python-3.13+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python"></a>
-  <a href="https://github.com/PrefectHQ/fastmcp"><img src="https://img.shields.io/badge/FastMCP-3.2-7c5cfc?style=flat-square" alt="FastMCP"></a>
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastMCP](https://img.shields.io/badge/FastMCP-3.4+-7c5cfc)](https://github.com/jlowin/fastmcp)
+[![Just](https://img.shields.io/badge/just-ready_to_go-7c5cfc?logo=just&logoColor=white)](https://github.com/casey/just)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-
-> 📖 **[Installation Guide](INSTALL.md)** — quick start, manual setup, and troubleshooting
-
-**FastMCP 3.1.0 compliant server** for managing RustDesk remote desktop connections via the `lejianwen/rustdesk-api`.
+FastMCP 3.4+ server for RustDesk remote desktop management. 16 tools for device status, peer connections, file transfers, Wake-on-LAN, resource monitoring, and session management. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp.
 
 ## Quick Start
 
-```powershell
-git clone https://github.com/sandraschi/rustdesk-mcp
-cd rustdesk-mcp
-just
-```
-
-This opens an interactive dashboard showing all available commands. Run `just bootstrap` to install dependencies, then `just serve` or `just dev` to start.
-
-### Manual Setup
-
-If you don't have `just` installed:
-
-##  Status: Alpha Release
-
- **This is an ALPHA release** with multiple implementation approaches available.
-
-###  What's Working (Alpha):
-
-#### **Option 1: Corporate API Integration (Original)**
-- **Infrastructure**: Docker containers running, MCP server connected to API
-- **Core Issue Fixed**: No more process lists masquerading as remote sessions
-- **API Integration**: HTTP calls to `lejianwen/rustdesk-api` instead of non-existent CLI commands
-- **Basic Session Management**: Can list and track sessions (authentication pending)
-
-#### **Option 2: Minimal Socket Communication (NEW)**
-- **Direct Socket Access**: Communicates directly with RustDesk servers via TCP
-- **No Docker Required**: Works with any running RustDesk servers
-- **Minimal Dependencies**: Python + sockets only
-- **Corporate-Free**: Extracts core functionality without enterprise overhead
-
-###  In Development (Alpha Limitations):
-- **API Authentication**: JWT token handling needs refinement (Option 1)
-- **Command Protocol**: Discovering actual RustDesk socket commands (Option 2)
-- **Full Tool Testing**: Not all MCP tools fully tested with real connections
-- **Error Handling**: Some edge cases may not be handled gracefully
-- **Production Readiness**: Not recommended for production use yet
-
-##  Implementation Options
-
-This MCP server offers **two approaches** to RustDesk integration:
-
-### Option 1: Corporate API Integration (Default)
-**Full-featured but complex** - Uses `lejianwen/rustdesk-api` management server with Docker infrastructure.
-
-### Option 2: Minimal Socket Communication (Recommended)
-**Simple and direct** - Communicates via TCP sockets without Docker or enterprise features.
-
-See **[README_minimal.md](README_minimal.md)** for the socket implementation details.
-
----
-
-##  About lejianwen/rustdesk-api (Option 1)
-
-**Important**: This MCP server integrates with **`lejianwen/rustdesk-api`** - a community-developed management server, NOT official RustDesk APIs (which don't exist).
-
-### Why lejianwen/rustdesk-api?
-
-**Official RustDesk provides:**
-- GUI client application only
-- Basic CLI setup tools (`--get-id`, `--server`)
-- No REST API or programmatic access
-
-**lejianwen/rustdesk-api provides:**
--  **Full REST API** for programmatic RustDesk control
--  **Web admin interface** for user/device management
--  **User authentication** and access control
--  **Address book management** and device organization
--  **Connection logging** and audit trails
--  **OAuth/LDAP integration** for enterprise use
-
-**How it works**: Our MCP server talks to the community API server, which manages official RustDesk relay servers, providing the programmatic access layer that official RustDesk lacks.
-
-## Features
-
--  **FastMCP 3.1.0 Compliant** - Full compatibility with the latest FastMCP protocol
--  **Remote Desktop Management** - Control RustDesk connections via REST API
--  **Session Monitoring** - Real-time session status (not process lists)
--  **Configuration Management** - Update RustDesk settings programmatically
--  **RESTful API Integration** - Uses `lejianwen/rustdesk-api` for backend operations
--  **Docker Ready** - Complete containerized deployment with RustDesk servers
-
-## Prerequisites
-
-- Python 3.8+
-- Docker (for API server deployment)
-- `lejianwen/rustdesk-api` running (see setup instructions)
-
-##  Installation
-
-### Prerequisites
-- [uv](https://docs.astral.sh/uv/) installed (RECOMMENDED)
-- Python 3.12+
-
-###  Quick Start
-Run immediately via `uvx`:
 ```bash
 uvx rustdesk-mcp
 ```
 
-###  Claude Desktop Integration
-Add to your `claude_desktop_config.json`:
-```json
-"mcpServers": {
-  "rustdesk-mcp": {
-    "command": "uv",
-    "args": ["--directory", "D:/Dev/repos/rustdesk-mcp", "run", "rustdesk-mcp"]
-  }
-}
-```
-### Option 1: Minimal Socket Setup (Recommended)
-**For the socket-based implementation** (no Docker required):
-
-1. **Install dependencies**:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-2. **Configure servers** (optional - defaults to localhost):
-   ```env
-   RUSTDESK_ID_SERVER_HOST=127.0.0.1
-   RUSTDESK_ID_SERVER_PORT=21116
-   RUSTDESK_RELAY_SERVER_HOST=127.0.0.1
-   RUSTDESK_RELAY_SERVER_PORT=21117
-   ```
-
-3. **Run MCP server**:
-   ```bash
-   python -m rustdesk_mcp.mcp_server
-   ```
-
-### Option 2: Full Docker Setup (Corporate)
-
-1. **Clone both repositories:**
-   ```bash
-   git clone https://github.com/lejianwen/rustdesk-api.git
-   cd rustdesk-api
-   ```
-
-2. **Run the automated setup:**
-   ```powershell
-   .\setup-and-run.ps1  # Creates .env, docker-compose, and startup scripts
-   ```
-
-3. **Start all services:**
-   ```powershell
-   .\start-services.ps1  # Starts API server, RustDesk servers, and MCP server
-   ```
-
-### Option 2: Manual Setup
-
-1. **Clone and setup MCP server:**
-   ```bash
-   git clone <rustdesk-mcp-repo>
-   cd rustdesk-mcp
-   uv pip install -r requirements.txt
-   ```
-
-2. **Deploy API server:**
-   ```bash
-   cd ../rustdesk-api
-   docker-compose -f docker-compose-setup.yaml up -d
-   ```
-
-3. **Configure environment:**
-   ```bash
-   # .env file should contain:
-   RUSTDESK_API_URL=http://localhost:21114
-   RUSTDESK_API_KEY=<generated-key>
-   ```
-
-###  Agentic Control & Safety
-This server supports autonomous orchestration (clicks/typing) via FastMCP sampling. 
-**Please read the [Agentic Control Guide](docs/mcp-technical/agentic-control.md)** before enabling these features.
-- Mandatory Explicit Consent
-- Coordinate Sanitization
-- Action Auditing
-
-4. **Start MCP server**:
-    ```bash
-    python -m rustdesk_mcp.mcp_server
-    ```
-
-## Usage
-
-### Starting the Server
-
+Or from source:
 ```bash
-python -m rustdesk_mcp.mcp_server
+git clone https://github.com/sandraschi/rustdesk-mcp
+cd rustdesk-mcp
+uv sync && uv run rustdesk-mcp
 ```
 
-The MCP server will connect to the API at `http://localhost:21114` and start on port 8077.
+## Tools (16)
 
-##  Packaging & Distribution
+All tools have SOTA docstrings with `Annotated[Field(description=...)]` parameters, `## Return Format`, and `## Examples`. Tools annotated with `READ_ONLY` or `MUTATING` annotations.
 
-This repository is SOTA 2026 compliant and uses the officially validated `@anthropic-ai/mcpb` workflow for distribution.
-
-### Pack Extension
-To generate a `.mcpb` distribution bundle with complete source code and automated build exclusions:
-```bash
-# SOTA 2026 standard pack command
-mcpb pack . dist/rustdesk-mcp.mcpb
-```
-
-### Web Interfaces
-
-- **API Admin**: http://localhost:21114/_admin/ (username: admin, password: from logs)
-- **API Server**: http://localhost:21114 (REST endpoints)
-- **MCP Server**: Port 8077 (FastMCP protocol)
-
-### MCP Tools Available
-
-The following MCP tools are available via the API:
-
-1. **list_active_sessions** - Get active remote sessions (no process lists!)
-2. **connect_to_peer** - Connect to a RustDesk peer
-3. **disconnect_peer** - Disconnect from sessions
-4. **get_address_book** - Access address book
-8. **get_detailed_rustdesk_status** - Comprehensive status
-9. **remote_click** - [DANGEROUS] Perform mouse clicks in remote window
-10. **remote_type** - [DANGEROUS] Inject keyboard input to remote session
-11. **agentic_workflow_tool** - [SEP-1577] Orchestrate autonomous remote tasks
-
-### Example Usage
-
-**List Active Sessions:**
-```python
-# Via MCP - returns real remote sessions, not processes
-result = await list_active_sessions()
-print(f"Active sessions: {result['count']}")
-```
-
-**Connect to Peer:**
-```python
-await connect_to_peer("123456789", "password123")
-```
+| Tool | Annotation | Description |
+|------|-----------|-------------|
+| `get_rustdesk_status` | READ_ONLY | Service status, connection count, mock mode |
+| `get_detailed_rustdesk_status` | READ_ONLY | Local ID, sessions, address book, network, performance |
+| `check_rustdesk_installation` | READ_ONLY | Installation check, service state, path validation |
+| `get_rustdesk_id` | READ_ONLY | Local RustDesk ID for incoming connections |
+| `list_active_sessions` | READ_ONLY | Sessions via socket, API, log parsing, session manager |
+| `get_address_book` | READ_ONLY | Saved peers from addrbook.toml |
+| `connect_to_peer` | MUTATING | Connect to remote machine by ID + password |
+| `disconnect_peer` | MUTATING | Disconnect specific session or all sessions |
+| `transfer_file` | MUTATING | Upload/download files (CLI + API fallback) |
+| `list_remote_files` | READ_ONLY | List remote directory files (API server required) |
+| `take_screenshot` | MUTATING | Capture screenshot (CLI v1.2.0+ or API) |
+| `start_recording` | MUTATING | Start recording (GUI-only, CLI unsupported) |
+| `stop_recording` | MUTATING | Stop recording |
+| `monitor_resources` | READ_ONLY | CPU/memory/disk/network sampling over time |
+| `get_connection_quality` | READ_ONLY | System-level network I/O counters |
+| `wake_on_lan` | MUTATING | Send magic packet to wake sleeping machine |
 
 ## Architecture
 
 ```
-    HTTP         Relay     
-   MCP Server     lejianwen API     RustDesk Server  
-   (Port 8077)                   (Port 21114)                  (hbbs/hbbr)      
-                                 Web Admin                                      
-                                 REST API                                       
-                           
-                                                                                       
-                                                                                       
-                                                                            
-                                                                             RustDesk Clients 
-                                                                               (GUI/CLI)      
-                                                                            
+AI Agent (Claude/Cursor/OpenCode)
+    |
+    v
+FastMCP Server (stdio or HTTP :10805)
+    |
+    +-- RustDeskService
+    |       +-- RustDeskSocketClient (TCP to hbbs:21116 / hbbr:21117)
+    |       +-- REST API (JWT auth, optional pro server)
+    |       +-- CLI subprocess (rustdesk.exe)
+    |
+    +-- SessionManager (in-memory session tracking)
+    +-- WolService (Wake-on-LAN magic packets)
+    +-- FastAPI web_app (:10805 -- REST API)
+    +-- React webapp (:10804 -- Vite hosted locally)
+
+Native distribution:
+    NSIS installer (Tauri 2.0) -- single-file desktop app
+    .mcpb bundle -- Claude Desktop distribution
 ```
 
-### Component Explanations:
+## Transport
 
-- **MCP Server (Port 8077)**: FastMCP protocol interface providing tools for AI assistants
-- **lejianwen/rustdesk-api (Port 21114)**: Community management server providing:
-  - REST API for programmatic control
-  - Web admin interface for management
-  - User authentication and device management
-  - Address book and connection logging
-- **RustDesk Server (hbbs/hbbr)**: Official relay servers handling P2P connections
-- **RustDesk Clients**: Standard GUI/CLI clients that connect through the servers
+| Mode | Usage |
+|------|-------|
+| stdio | `python -m rustdesk_mcp` (default, Claude Desktop) |
+| HTTP | `MCP_TRANSPORT=http MCP_PORT=10805 python -m rustdesk_mcp` |
 
-**Why this architecture?** Official RustDesk lacks APIs, so we use the community API server as the management layer.
+## Webapp
+
+React 19 + Vite 7 + Tailwind 3 + TypeScript 5.9 on port **10804**. Features:
+
+- **Dashboard**: Health KPIs with exponential backoff retry, `data-testid` on all metrics, version/uptime display
+- **Chat**: 4 personalities + Custom, skill-based preprompt (fetched from `/api/skills` on mount), streaming response, TTS (SpeakButton on messages), STT (MicButton on input), localStorage persistence (100-msg cap), export .txt, zustand state management
+- **Tools**: Dynamic discovery from `/api/tools`, annotation badges (READ/RW), expandable drill-down
+- **Skills**: Live skill browser with markdown content fetched from backend
+- **API Docs**: Swagger UI / ReDoc toggle, quick-ref endpoint strip
+- **Control**: Remote click/type wired to `POST /api/control/`, security guard toggle
+- **Apps**: Dynamic fleet discovery — live port scan across 25+ known fleet ports
+- **Logging**: Ring-buffer log viewer with filter, search, pagination, JSON/CSV export
+
+## Desktop (Tauri 2.0 NSIS)
+
+```bash
+just build-native   # PyInstaller + Rust + NSIS in one command
+just cua-nsis-test  # 7-phase smoke test (install -> launch -> verify -> uninstall)
+```
+
+Single installer, embedded backend (not `externalBin`), PREINSTALL/PREUNINSTALL kill hooks, optional MCP client registration in Cursor/Claude Desktop.
+
+## LLM Discovery
+
+On mount, the webapp probes:
+- Ollama on `:11434` (probes `/api/tags`)
+- LM Studio on `:1234` (probes `/v1/models`)
+
+Provider status shown as green/red dot in chat header.
+
+## Skills
+
+The server ships one skill (`remote-support`) stored at `src/rustdesk_mcp/skills/remote-support/SKILL.md`. Loaded automatically by the chat page as the base system prompt.
+
+## Environment
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RUSTDESK_PATH` | auto-detect | Path to rustdesk.exe |
+| `RUSTDESK_CONFIG_DIR` | auto-detect | Config directory |
+| `RUSTDESK_API_URL` | (none) | Pro API server URL |
+| `RUSTDESK_API_USERNAME` | admin | API username |
+| `RUSTDESK_API_PASSWORD` | (none) | API password |
+| `MCP_TRANSPORT` | stdio | stdio or http |
+| `MCP_PORT` | 10805 | HTTP port |
+| `AI_PROVIDER` | ollama | LLM provider |
+| `AI_ENDPOINT` | http://localhost:11434 | LLM endpoint |
+| `AI_MODEL` | gemini-2.0-flash-exp | LLM model |
 
 ## Development
 
-### Setting Up for Development
-
-1. **Clone repositories:**
-   ```bash
-   git clone <rustdesk-mcp-repo>
-   git clone https://github.com/lejianwen/rustdesk-api.git
-   ```
-
-2. **Setup Python environment:**
-   ```bash
-   cd rustdesk-mcp
-   uv pip install -r requirements.txt
-   ```
-
-3. **Deploy API server:**
-   ```bash
-   cd ../rustdesk-api
-   docker-compose -f docker-compose-setup.yaml up -d
-   ```
-
-### Running Tests
-
 ```bash
-# Test API integration
-python test_api.py
-
-# Run MCP server tests
-pytest tests/
+just lint       # ruff check + biome check
+just fix        # ruff --fix + biome --write
+just test       # pytest tests/
+start.ps1       # Full stack: backend + webapp
+just build-native  # NSIS installer
 ```
 
-### API Integration Details
+## Dist
 
-- **Authentication**: Uses API key from environment
-- **Endpoints**: All calls proxy through `lejianwen/rustdesk-api`
-- **Fallback**: Session manager provides local tracking when API unavailable
-- **Fixed Issue**: No more process lists - only real remote sessions
-
-## Troubleshooting
-
-- **API Connection Failed**: Check Docker containers are running
-- **Authentication Errors**: Verify API key in .env file
-- **Session Lists Empty**: This is correct - no fake process entries
-
-
-## 🛡️ Industrial Quality Stack
-
-This project adheres to **SOTA 14.1** industrial standards for high-fidelity agentic orchestration:
-
-- **Python (Core)**: [Ruff](https://astral.sh/ruff) for linting and formatting. Zero-tolerance for `print` statements in core handlers (`T201`).
-- **Webapp (UI)**: [Biome](https://biomejs.dev/) for sub-millisecond linting. Strict `noConsoleLog` enforcement.
-- **Protocol Compliance**: Hardened `stdout/stderr` isolation to ensure crash-resistant JSON-RPC communication.
-- **Automation**: [Justfile](./justfile) recipes for all fleet operations (`just lint`, `just fix`, `just dev`).
-- **Security**: Automated audits via `bandit` and `safety`.
+| Track | Artifact | For |
+|-------|----------|-----|
+| Native | `native/target/release/bundle/nsis/*-setup.exe` | End-user desktop install |
+| MCPB | `mcpb pack . dist/rustdesk-mcp.mcpb` | Claude Desktop |
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- **[lejianwen/rustdesk-api](https://github.com/lejianwen/rustdesk-api)** - Community API server that made this possible
-- **[RustDesk](https://rustdesk.com/)** - The open-source remote desktop software
-- **[FastMCP](https://FastMCP 3.1.0com/)** - The MCP protocol implementation
-
----
-
-**Status**:  **API Integration Complete** - Real remote sessions, no process lists!
+MIT

@@ -4,7 +4,10 @@
     "version": "0.1.0",
     "identifier": "com.sandraschi.rustdesk-mcp",
     "build": {
-        "frontendDist": "../web_sota/dist"
+        "frontendDist": "../web_sota/dist",
+        "devUrl": "http://localhost:10804",
+        "beforeDevCommand": "npm --prefix ../web_sota run dev",
+        "beforeBuildCommand": "pwsh -NoProfile -File ./build.ps1"
     },
     "app": {
         "windows": [
@@ -28,7 +31,8 @@
         "icon": ["icons/icon.png", "icons/icon.ico"],
         "resources": [
             "resources/rustdesk-mcp-backend.exe",
-            "resources/.env"],
+            "resources/.env.example",
+            "resources/install-mcp-clients.ps1"],
         "windows": {
             "webviewInstallMode": {
                 "type": "skip"
