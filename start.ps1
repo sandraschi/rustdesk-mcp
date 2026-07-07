@@ -24,12 +24,15 @@ Kill-Zombies
 Write-Host "===== rustdesk++ Launch =====" -ForegroundColor Cyan
 
 Write-Host "[1/6] Starting hbbs on :21116..." -ForegroundColor Green
+if (-not (Test-Path "$HBB\hbbs.exe")) { Write-Host "  hbbs.exe not found at $HBB\hbbs.exe — run 'cargo build --release --bin hbbs' in rustdesk-server" -ForegroundColor Red; exit 1 }
 Start-Process -NoNewWindow -FilePath "$HBB\hbbs.exe"; Start-Sleep 3
 
 Write-Host "[2/6] Starting hbbr on :21117..." -ForegroundColor Green
+if (-not (Test-Path "$HBB\hbbr.exe")) { Write-Host "  hbbr.exe not found — run 'cargo build --release --bin hbbr'" -ForegroundColor Red; exit 1 }
 Start-Process -NoNewWindow -FilePath "$HBB\hbbr.exe"; Start-Sleep 2
 
 Write-Host "[3/6] Starting fork API on :10806..." -ForegroundColor Green
+if (-not (Test-Path "$FORK\rustdesk.exe")) { Write-Host "  rustdesk.exe not found at $FORK — build rustdesk++ fork first" -ForegroundColor Red; exit 1 }
 Start-Process -NoNewWindow -FilePath "$FORK\rustdesk.exe" -ArgumentList "--api-server 10806"; Start-Sleep 3
 
 Write-Host "[4/6] Starting MCP backend on :10805..." -ForegroundColor Green
