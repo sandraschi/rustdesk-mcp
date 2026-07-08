@@ -853,13 +853,12 @@ class RustDeskService:
                 ],
             }
 
-        # Try rustdesk++ fork API server first
+        # Try rustdesk++ fork API server first (10s timeout)
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "http://127.0.0.1:10806/api/v1/file/upload",
-                    json={"peer_id": direction == "upload" and "remote" or "local",
-                          "local_path": local_path,
+                    json={"local_path": local_path,
                           "remote_path": remote_path,
                           "direction": direction},
                     timeout=aiohttp.ClientTimeout(total=10),
@@ -875,9 +874,9 @@ class RustDeskService:
         except (aiohttp.ClientError, asyncio.TimeoutError, Exception):
             pass
 
-        # Try fork CLI --send-file / --recv-file
+        # Try fork CLI --send-file / --recv-file (20s timeout, not 120)
         rustdesk_exe = str(self.rustdesk_path) if self.rustdesk_path else ""
-        if rustdesk_exe:
+        if rustdesk_exe and peer_id:
             try:
                 cmd = [rustdesk_exe]
                 if direction == "upload":
@@ -888,11 +887,12 @@ class RustDeskService:
                     *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
                 try:
-                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
                     if proc.returncode == 0:
                         return {"success": True, "message": f"File {direction} via fork CLI", "output": stdout.decode()}
                 except asyncio.TimeoutError:
                     proc.kill()
+                    await proc.wait()
             except Exception:
                 pass
 
