@@ -4,53 +4,53 @@
 
 param([switch]$Kill)
 
-$HBB="D:\Dev\repos\rustdesk-server\target\release"
 $FORK="D:\Dev\repos\rustdesk\target\debug"
-$MCP=$PSScriptRoot
+$MCP="D:\Dev\repos\rustdesk-mcp"
 $TARGET_PORTS=@(10804,10805,10806,21115,21116,21117,21118,21119)
 
-function Kill-Zombies {
+if ($Kill) {
+    Write-Host "Stopping services..." -ForegroundColor Yellow
     Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object {
         $_.LocalPort -in $TARGET_PORTS -and $_.State -eq "Listen"
     } | ForEach-Object { taskkill /F /PID $_.OwningProcess 2>$null }
     Get-Process -Name hbbs,hbbr,rustdesk-mcp* -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep 2
+    Write-Host "All stopped." -ForegroundColor Green
+    return
 }
 
-if ($Kill) { Kill-Zombies; Write-Host "All stopped." -ForegroundColor Green; return }
+# Ensure hbbs/hbbr are running via scheduled tasks
+$sched = Get-ScheduledTask -TaskName "RustDesk hbbs" -ErrorAction SilentlyContinue
+if (-not $sched) {
+    Write-Host "Installing relay server tasks (as admin)..." -ForegroundColor Yellow
+    Start-Process "D:\Dev\repos\rustdesk\install-server.bat" -Verb RunAs -Wait
+} else {
+    Write-Host "Starting relay server tasks..." -ForegroundColor Green
+    try { Start-ScheduledTask "RustDesk hbbs" } catch {}
+    try { Start-ScheduledTask "RustDesk hbbr" } catch {}
+}
+Start-Sleep 4
 
-Kill-Zombies
-
-Write-Host "===== rustdesk++ Launch =====" -ForegroundColor Cyan
-
-Write-Host "[1/6] Starting hbbs on :21116..." -ForegroundColor Green
-if (-not (Test-Path "$HBB\hbbs.exe")) { Write-Host "  hbbs.exe not found at $HBB\hbbs.exe — run 'cargo build --release --bin hbbs' in rustdesk-server" -ForegroundColor Red; exit 1 }
-Start-Process -NoNewWindow -FilePath "$HBB\hbbs.exe"; Start-Sleep 3
-
-Write-Host "[2/6] Starting hbbr on :21117..." -ForegroundColor Green
-if (-not (Test-Path "$HBB\hbbr.exe")) { Write-Host "  hbbr.exe not found — run 'cargo build --release --bin hbbr'" -ForegroundColor Red; exit 1 }
-Start-Process -NoNewWindow -FilePath "$HBB\hbbr.exe"; Start-Sleep 2
-
-Write-Host "[3/6] Starting fork API on :10806..." -ForegroundColor Green
-if (-not (Test-Path "$FORK\rustdesk.exe")) { Write-Host "  rustdesk.exe not found at $FORK — build rustdesk++ fork first" -ForegroundColor Red; exit 1 }
-Start-Process -NoNewWindow -FilePath "$FORK\rustdesk.exe" -ArgumentList "--api-server 10806"; Start-Sleep 3
-
-Write-Host "[4/6] Starting MCP backend on :10805..." -ForegroundColor Green
-$env:RUSTDESK_PATH="C:\Program Files\RustDesk\rustdesk.exe"
-$env:MCP_PORT="10805"
-$env:MCP_TRANSPORT="http"
-Start-Process -NoNewWindow -FilePath "uv" -ArgumentList "run","python","-m","rustdesk_mcp.server" -WorkingDirectory $MCP
-Start-Sleep 6
-
-Write-Host "[5/6] Starting webapp on :10804..." -ForegroundColor Green
-Start-Process -NoNewWindow -FilePath "bun" -ArgumentList "run","dev" -WorkingDirectory "$MCP\web_sota"
+# Start fork API server via WMI (survives shell exit)
+Write-Host "Starting fork API on :10806..." -ForegroundColor Green
+Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+    CommandLine="$FORK\rustdesk.exe --api-server 10806"
+} 2>$null
 Start-Sleep 3
 
-Write-Host "[6/6] Health check..." -ForegroundColor Green
-try { $r=Invoke-WebRequest "http://127.0.0.1:10805/api/health" -TimeoutSec 5 -UseBasicParsing; Write-Host "  MCP: $($r.StatusCode)" -ForegroundColor Green }
+# Start MCP backend
+Write-Host "Starting MCP backend on :10805..." -ForegroundColor Green
+$env:RUSTDESK_PATH = "C:\Program Files\RustDesk\rustdesk.exe"
+$env:MCP_PORT = "10805"
+$env:MCP_TRANSPORT = "http"
+Start-Process -NoNewWindow -FilePath "uv" -ArgumentList "run","python","-m","rustdesk_mcp.server" -WorkingDirectory $MCP
+Start-Sleep 5
+
+# Health checks
+try { $r = Invoke-WebRequest "http://127.0.0.1:10805/api/health" -TimeoutSec 5 -UseBasicParsing; Write-Host "  MCP: OK" -ForegroundColor Green }
 catch { Write-Host "  MCP: DOWN" -ForegroundColor Red }
-try { $r=Invoke-WebRequest "http://127.0.0.1:10806/api/v1/health" -TimeoutSec 3 -UseBasicParsing; Write-Host "  Fork: $($r.StatusCode)" -ForegroundColor Green }
+
+try { $r = Invoke-WebRequest "http://127.0.0.1:10806/api/v1/health" -TimeoutSec 3 -UseBasicParsing; Write-Host "  Fork: OK" -ForegroundColor Green }
 catch { Write-Host "  Fork: DOWN" -ForegroundColor Red }
 
+Write-Host "`nWebapp: http://127.0.0.1:10805" -ForegroundColor Cyan
 Start-Process "http://127.0.0.1:10805"
-Write-Host "All services started" -ForegroundColor Cyan
