@@ -18,6 +18,13 @@ if ($Kill) {
     return
 }
 
+# Kill stale MCP and fork API processes on 10805, 10806
+Write-Host "Killing stale processes on target ports..." -ForegroundColor Yellow
+Get-NetTCPConnection -ErrorAction SilentlyContinue | Where-Object {
+    $_.LocalPort -in @(10805,10806) -and $_.State -eq "Listen"
+} | ForEach-Object { taskkill /F /PID $_.OwningProcess 2>$null }
+Start-Sleep 2
+
 # Ensure hbbs/hbbr are running via scheduled tasks
 $sched = Get-ScheduledTask -TaskName "RustDesk hbbs" -ErrorAction SilentlyContinue
 if (-not $sched) {
