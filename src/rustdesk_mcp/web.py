@@ -39,7 +39,7 @@ async def check_port(port: int) -> dict:
 def setup_webapp(app: FastAPI, mcp_app=None):
     """Setup static files and API endpoints for the web interface."""
 
-    static_dir = Path(__file__).parent.parent.parent / "webapp" / "dist"
+    static_dir = Path(__file__).parent.parent.parent / "web_sota" / "dist"
 
     if static_dir.exists():
         app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
