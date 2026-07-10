@@ -22,7 +22,7 @@ from rustdesk_mcp.server import run_server_async
 from rustdesk_mcp.services.advanced_control import AdvancedControlService
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
 from rustdesk_mcp.services.wol_service import WolService
-from rustdesk_mcp.tools import RustDeskTools
+from rustdesk_mcp.tools_module import RustDeskTools
 
 _READ_ONLY = {"readonly": True}
 _MUTATING = {}
@@ -194,7 +194,7 @@ async def register_tools(
         Returns:
             Dictionary containing connection status and session information
         """
-        from rustdesk_mcp.tools import ConnectionRequest
+        from rustdesk_mcp.tools_module import ConnectionRequest
 
         request = ConnectionRequest(
             peer_id=peer_id, password=password, session_id=session_id
@@ -233,7 +233,7 @@ async def register_tools(
         Returns:
             Dictionary containing transfer status and details
         """
-        from rustdesk_mcp.tools import FileTransferRequest
+        from rustdesk_mcp.tools_module import FileTransferRequest
 
         request = FileTransferRequest(
             local_path=local_path,
@@ -273,7 +273,7 @@ async def register_tools(
         Returns:
             Dictionary containing screenshot status and file information
         """
-        from rustdesk_mcp.tools import ScreenshotRequest
+        from rustdesk_mcp.tools_module import ScreenshotRequest
 
         request = ScreenshotRequest(save_path=save_path, session_id=session_id)
         return await tools.take_screenshot(request)
@@ -292,7 +292,7 @@ async def register_tools(
         Returns:
             Dictionary containing recording status
         """
-        from rustdesk_mcp.tools import RecordingRequest
+        from rustdesk_mcp.tools_module import RecordingRequest
 
         request = RecordingRequest(save_path=save_path, session_id=session_id)
         return await tools.start_recording(request)
@@ -325,7 +325,7 @@ async def register_tools(
         Returns:
             Dictionary containing resource monitoring data
         """
-        from rustdesk_mcp.tools import MonitoringRequest
+        from rustdesk_mcp.tools_module import MonitoringRequest
 
         request = MonitoringRequest(
             duration_seconds=duration_seconds, interval=interval, session_id=session_id

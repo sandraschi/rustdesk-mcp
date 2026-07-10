@@ -21,7 +21,7 @@ from fastmcp import FastMCP
 
 from rustdesk_mcp.config import get_config
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
-from rustdesk_mcp.tools import RustDeskTools
+from rustdesk_mcp.tools_module import RustDeskTools
 from rustdesk_mcp.web import setup_webapp
 
 # Configure logging

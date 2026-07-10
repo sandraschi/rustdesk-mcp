@@ -25,7 +25,7 @@ from .api.v1.routes import router as api_v1_router
 from .config import get_config
 from .services.rustdesk_service import RustDeskService
 from .services.wol_service import WolService
-from .tools import RustDeskTools
+from .tools_module import RustDeskTools
 from .transport import run_server
 from .web import setup_webapp
 
@@ -138,6 +138,10 @@ async def register_tools():
     """Register tools with the MCP server."""
     if not rustdesk_service or not rustdesk_tools:
         raise RuntimeError("RustDesk service or tools not initialized")
+
+    # Register Prefab UI cards
+    from .tools.prefab_cards import register_prefab_cards
+    register_prefab_cards(mcp, rustdesk_service)
 
     # Register status tools
     @mcp.tool(annotations=_READ_ONLY)
@@ -373,7 +377,7 @@ async def register_tools():
          - Session ID helps track multiple concurrent connections
          - Connection remains active until explicitly disconnected
         """
-        from .tools import ConnectionRequest
+        from .tools_module import ConnectionRequest
 
         request = ConnectionRequest(
             peer_id=peer_id, password=password, session_id=session_id
@@ -419,7 +423,7 @@ async def register_tools():
         Errors:
          - Returns error_type="not_implemented" with SCP/SFTP suggestions when RustDesk CLI lacks --file-transfer
         """
-        from .tools import FileTransferRequest
+        from .tools_module import FileTransferRequest
 
         request = FileTransferRequest(
             local_path=local_path, remote_path=remote_path,
@@ -465,7 +469,7 @@ async def register_tools():
         Errors:
          - Returns error_type="not_implemented" when CLI lacks screenshot support
         """
-        from .tools import ScreenshotRequest
+        from .tools_module import ScreenshotRequest
 
         request = ScreenshotRequest(save_path=save_path, session_id=session_id)
         return await rustdesk_tools.take_screenshot(request)
@@ -482,7 +486,7 @@ async def register_tools():
         ## Return Format
         {"success": bool, "error": str, "error_type": str, "suggestions": list}
         """
-        from .tools import RecordingRequest
+        from .tools_module import RecordingRequest
 
         request = RecordingRequest(save_path=save_path, session_id=session_id)
         return await rustdesk_tools.start_recording(request)
@@ -519,7 +523,7 @@ async def register_tools():
          - duration_seconds is capped at 3600 (1 hour)
          - interval is clamped to 0.5-60s
         """
-        from .tools import MonitoringRequest
+        from .tools_module import MonitoringRequest
 
         request = MonitoringRequest(
             duration_seconds=duration_seconds, interval=interval, session_id=session_id
