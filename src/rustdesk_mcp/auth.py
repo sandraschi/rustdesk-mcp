@@ -1,8 +1,8 @@
 import os
 import secrets
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from typing import Optional
 
 security = HTTPBasic()
 

@@ -1,9 +1,8 @@
 import json as _json
 import os
+
 import httpx
 import structlog
-from typing import List, Dict, Any, Optional
-from fastapi.responses import StreamingResponse
 
 logger = structlog.get_logger(__name__)
 
@@ -16,7 +15,7 @@ class AIRouter:
         self.endpoint = os.getenv("AI_ENDPOINT", "http://localhost:11434")
         self.model = os.getenv("AI_MODEL", "gemini-2.0-flash-exp")
 
-    async def chat_with_llm(self, messages: List[Dict[str, str]]) -> str:
+    async def chat_with_llm(self, messages: list[dict[str, str]]) -> str:
         """Call the configured LLM provider (non-streaming)."""
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
@@ -32,10 +31,10 @@ class AIRouter:
                     return response.json()["message"]["content"]
                 return f"[MOCK] Provider {self.provider} not fully integrated yet."
         except Exception as e:
-            logger.error(f"AI call failed: {str(e)}")
-            return f"Error: {str(e)}"
+            logger.error(f"AI call failed: {e!s}")
+            return f"Error: {e!s}"
 
-    async def chat_stream(self, messages: List[Dict[str, str]]):
+    async def chat_stream(self, messages: list[dict[str, str]]):
         """Streaming response from the configured LLM provider."""
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
@@ -62,8 +61,8 @@ class AIRouter:
                 else:
                     yield f"Provider {self.provider} streaming not configured."
         except Exception as e:
-            logger.error(f"AI stream failed: {str(e)}")
-            yield f"Error: {str(e)}"
+            logger.error(f"AI stream failed: {e!s}")
+            yield f"Error: {e!s}"
 
 
 ai_router = AIRouter()

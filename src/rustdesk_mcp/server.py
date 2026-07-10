@@ -12,25 +12,22 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional, Union
+from typing import Annotated, Any
 
 import psutil
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from fastapi import status
-
 from fastmcp import FastMCP
 from pydantic import Field
 
-from .auth import authenticate
+from .api.v1.routes import router as api_v1_router
 from .config import get_config
 from .services.rustdesk_service import RustDeskService
 from .services.wol_service import WolService
 from .tools import RustDeskTools
 from .transport import run_server
 from .web import setup_webapp
-from .api.v1.routes import router as api_v1_router
 
 logger = logging.getLogger(__name__)
 _START_TIME = time.time()
@@ -38,15 +35,15 @@ _START_TIME = time.time()
 _READ_ONLY = {"readonly": True}
 _MUTATING = {}
 
-def _error_response(error: str, error_type: str = "general", **kwargs) -> Dict[str, Any]:
+def _error_response(error: str, error_type: str = "general", **kwargs) -> dict[str, Any]:
     """Auto-logging error response — traceback logged before returning to caller."""
     logger.exception("Tool error: %s [%s]", error, error_type)
     return {"success": False, "error": error, "error_type": error_type, **kwargs}
 
 # Store the service instances
-rustdesk_service: Optional[RustDeskService] = None
-rustdesk_tools: Optional[RustDeskTools] = None
-wol_service: Optional[WolService] = None
+rustdesk_service: RustDeskService | None = None
+rustdesk_tools: RustDeskTools | None = None
+wol_service: WolService | None = None
 
 # FastAPI Bridge - Unified with Alexa/Bookmark pattern
 web_app = FastAPI(title="Remote Desktop Web Bridge")
@@ -101,7 +98,7 @@ async def lifespan(app: FastAPI):
 
         logger.info("RustDesk MCP Server startup complete")
 
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to initialize RustDesk MCP Server")
         raise
 
@@ -144,7 +141,7 @@ async def register_tools():
 
     # Register status tools
     @mcp.tool(annotations=_READ_ONLY)
-    async def get_rustdesk_status() -> Dict[str, Any]:
+    async def get_rustdesk_status() -> dict[str, Any]:
         """Get comprehensive status information about the RustDesk service and current connections.
 
         ## Return Format
@@ -156,7 +153,7 @@ async def register_tools():
         return await rustdesk_service.get_status()
 
     @mcp.tool(annotations=_READ_ONLY)
-    async def get_detailed_rustdesk_status() -> Dict[str, Any]:
+    async def get_detailed_rustdesk_status() -> dict[str, Any]:
         """Get detailed RustDesk status including local ID, active sessions, and address book.
 
         ## Return Format
@@ -172,7 +169,7 @@ async def register_tools():
         return await rustdesk_service.get_detailed_status()
 
     @mcp.tool(annotations=_READ_ONLY)
-    async def check_rustdesk_installation() -> Dict[str, Any]:
+    async def check_rustdesk_installation() -> dict[str, Any]:
         """Check if RustDesk is properly installed and running on the system.
 
         ## Return Format
@@ -194,7 +191,7 @@ async def register_tools():
         }
 
     @mcp.tool(annotations=_READ_ONLY)
-    async def get_rustdesk_id() -> Dict[str, Any]:
+    async def get_rustdesk_id() -> dict[str, Any]:
         """Retrieve the local RustDesk ID required for remote connections.
 
         ## Return Format
@@ -210,7 +207,7 @@ async def register_tools():
         return await rustdesk_service.get_rustdesk_id()
 
     @mcp.tool(annotations=_READ_ONLY)
-    async def list_active_sessions() -> Dict[str, Any]:
+    async def list_active_sessions() -> dict[str, Any]:
         """List all currently active RustDesk remote desktop sessions.
 
         Uses socket communication (primary), REST API (fallback), session manager (final).
@@ -271,7 +268,7 @@ async def register_tools():
                         current_log = log_dir / "RustDesk_rCURRENT.log"
                         if current_log.exists():
                             with open(
-                                current_log, "r", encoding="utf-8", errors="ignore"
+                                current_log, encoding="utf-8", errors="ignore"
                             ) as f:
                                 lines = f.readlines()[-5:]  # Last 5 lines
 
@@ -311,10 +308,10 @@ async def register_tools():
                                         continue
                                     break  # Only get the most recent
             except Exception as e:
-                logger.debug(f"Log parsing failed: {str(e)}")
+                logger.debug(f"Log parsing failed: {e!s}")
 
         except Exception as e:
-            logger.debug(f"Enhanced session detection failed: {str(e)}")
+            logger.debug(f"Enhanced session detection failed: {e!s}")
 
         # If no sessions found through enhanced methods, fall back to process info
         if not sessions:
@@ -340,7 +337,7 @@ async def register_tools():
         }
 
     @mcp.tool(annotations=_READ_ONLY)
-    async def get_address_book() -> Dict[str, Any]:
+    async def get_address_book() -> dict[str, Any]:
         """Retrieve the RustDesk address book containing saved peer connections.
 
         ## Return Format
@@ -360,8 +357,8 @@ async def register_tools():
     async def connect_to_peer(
         peer_id: Annotated[str, Field(description="The RustDesk ID of the remote machine (9-10 digit number).")],
         password: Annotated[str, Field(description="The password set on the remote machine for this connection.")],
-        session_id: Annotated[Optional[str], Field(description="Optional custom session identifier for tracking.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Optional custom session identifier for tracking.")] = None,
+    ) -> dict[str, Any]:
         """Establish a remote desktop connection to a RustDesk peer.
 
         ## Return Format
@@ -385,8 +382,8 @@ async def register_tools():
 
     @mcp.tool(annotations=_MUTATING)
     async def disconnect_peer(
-        session_id: Annotated[Optional[str], Field(description="Session to disconnect. Omit to disconnect all.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session to disconnect. Omit to disconnect all.")] = None,
+    ) -> dict[str, Any]:
         """Disconnect from active RustDesk remote desktop sessions.
 
         ## Return Format
@@ -404,9 +401,9 @@ async def register_tools():
         local_path: Annotated[str, Field(description="Path to the local file for transfer.")],
         remote_path: Annotated[str, Field(description="Destination path on the remote machine.")],
         direction: Annotated[str, Field(description="'upload' (local to remote) or 'download' (remote to local).")] = "upload",
-        session_id: Annotated[Optional[str], Field(description="Session identifier for targeting specific connection.")] = None,
-        peer_id: Annotated[Optional[str], Field(description="RustDesk peer ID (9-10 digit). Required for fork CLI transfer.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session identifier for targeting specific connection.")] = None,
+        peer_id: Annotated[str | None, Field(description="RustDesk peer ID (9-10 digit). Required for fork CLI transfer.")] = None,
+    ) -> dict[str, Any]:
         """Transfer files between local and remote RustDesk-connected machines.
 
         Tries fork API server first, then fork CLI --send-file/--recv-file,
@@ -433,8 +430,8 @@ async def register_tools():
     @mcp.tool(annotations=_READ_ONLY)
     async def list_remote_files(
         remote_path: Annotated[str, Field(description="Remote directory path to list.")] = "/",
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """List files in a remote directory.
 
         ## Return Format
@@ -451,9 +448,9 @@ async def register_tools():
     # Screen capture tools
     @mcp.tool(annotations=_MUTATING)
     async def take_screenshot(
-        save_path: Annotated[Optional[str], Field(description="Path to save the screenshot. Auto-named if omitted.")] = None,
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        save_path: Annotated[str | None, Field(description="Path to save the screenshot. Auto-named if omitted.")] = None,
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """Capture a screenshot of the remote desktop session.
 
         Requires RustDesk CLI v1.2.0+ or an API server.
@@ -475,9 +472,9 @@ async def register_tools():
 
     @mcp.tool(annotations=_MUTATING)
     async def start_recording(
-        save_path: Annotated[Optional[str], Field(description="Path to save the recording.")] = None,
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        save_path: Annotated[str | None, Field(description="Path to save the recording.")] = None,
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """Start recording the remote desktop session.
 
         Screen recording is not supported via RustDesk CLI. Use the RustDesk GUI.
@@ -492,8 +489,8 @@ async def register_tools():
 
     @mcp.tool(annotations=_MUTATING)
     async def stop_recording(
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """Stop the current screen recording.
 
         ## Return Format
@@ -506,8 +503,8 @@ async def register_tools():
     async def monitor_resources(
         duration_seconds: Annotated[int, Field(description="Total monitoring duration in seconds (max 3600).")] = 60,
         interval: Annotated[float, Field(description="Time between measurements in seconds (0.5-60).")] = 5.0,
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """Monitor system resource usage over time.
 
         Samples CPU, memory, disk, and network at regular intervals.
@@ -531,8 +528,8 @@ async def register_tools():
 
     @mcp.tool(annotations=_READ_ONLY)
     async def get_connection_quality(
-        session_id: Annotated[Optional[str], Field(description="Session identifier.")] = None,
-    ) -> Dict[str, Any]:
+        session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+    ) -> dict[str, Any]:
         """Get system-level network connection quality metrics.
 
         Returns real psutil network I/O counters (not RustDesk per-connection stats).
@@ -555,8 +552,8 @@ async def register_tools():
         mac_address: str,
         broadcast_ip: str = "255.255.255.255",
         port: int = 9,
-        hostname: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        hostname: str | None = None,
+    ) -> dict[str, Any]:
         """
         Send a Wake-on-LAN magic packet to wake a sleeping machine on the local network.
 
@@ -613,7 +610,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 # Health check endpoint (no auth — fleet probe + load balancers)
 @app.get("/health", dependencies=[])
-async def health_check() -> Dict[str, Any]:
+async def health_check() -> dict[str, Any]:
     """Health check endpoint — fleet standard format."""
     tool_count = len(mcp.list_tools()) if mcp else 0
     return {

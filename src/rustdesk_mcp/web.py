@@ -1,11 +1,12 @@
 import asyncio
 import time
 from pathlib import Path
-from fastapi import FastAPI, Depends
-from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
-from .auth import authenticate
+
+from fastapi import Depends, FastAPI
+from fastapi.responses import FileResponse, StreamingResponse
+
 from .ai import ai_router
+from .auth import authenticate
 
 _START_TIME = time.time()
 
@@ -26,7 +27,7 @@ async def check_fork_api() -> dict:
 async def check_port(port: int) -> dict:
     """Check if a TCP port is open (hbbs/hbbr)."""
     try:
-        reader, writer = await asyncio.wait_for(
+        _reader, writer = await asyncio.wait_for(
             asyncio.open_connection("127.0.0.1", port), timeout=2
         )
         writer.close()
@@ -41,14 +42,12 @@ def setup_webapp(app: FastAPI, mcp_app=None):
 
     static_dir = Path(__file__).parent.parent.parent / "web_sota" / "dist"
 
-    if static_dir.exists():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
-
+    # API routes — register BEFORE StaticFiles mount
     @app.get("/api/tools", dependencies=[Depends(authenticate)])
     async def list_tools():
         if not mcp_app:
             return {"tools": []}
-        tools = mcp_app.list_tools()
+        tools = await mcp_app.list_tools()
         return {"tools": [{"name": t.name, "description": getattr(t, "description", "")} for t in tools]}
 
     @app.post("/api/ai/chat")
@@ -113,16 +112,9 @@ def setup_webapp(app: FastAPI, mcp_app=None):
 
     @app.get("/api/status/fork")
     async def fork_status():
-        """Probe the rustdesk++ fork API server and self-hosted server."""
         import aiohttp
-        result = {
-            "fork_api": {"status": "unknown"},
-            "hbbs": {"status": "unknown"},
-            "hbbr": {"status": "unknown"},
-            "fork_binary": None,
-        }
+        result = {"fork_api": {"status": "unknown"}, "hbbs": {"status": "unknown"}, "hbbr": {"status": "unknown"}, "fork_binary": None}
         async with aiohttp.ClientSession() as session:
-            # Check fork API server
             try:
                 async with session.get("http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)) as r:
                     if r.status == 200:
@@ -130,26 +122,13 @@ def setup_webapp(app: FastAPI, mcp_app=None):
                         result["fork_api"] = {"status": "available", **data}
             except Exception:
                 result["fork_api"] = {"status": "unreachable"}
-
-            # Check hbbs (UDP, can't probe easily — check TCP fallback port)
             try:
-                async with session.get("http://127.0.0.1:21116/", timeout=aiohttp.ClientTimeout(total=1)) as r:
-                    pass
-                result["hbbs"] = {"status": "responding"}
-            except Exception:
-                result["hbbs"] = {"status": "unknown"}
-
-            # Check hbbr
-            try:
-                _, writer = await asyncio.wait_for(
-                    asyncio.open_connection("127.0.0.1", 21117), timeout=2
-                )
+                _, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", 21117), timeout=2)
                 writer.close()
                 await writer.wait_closed()
                 result["hbbr"] = {"status": "responding"}
             except Exception:
                 result["hbbr"] = {"status": "unreachable"}
-
         return result
 
     @app.get("/api/health")
@@ -166,3 +145,12 @@ def setup_webapp(app: FastAPI, mcp_app=None):
             "rustdesk_fork_api": fork,
             "hbbs_running": hbbs,
         }
+
+    # Static files — catch-all SPA handler (AFTER all API routes)
+    if static_dir.exists():
+        @app.get("/{full_path:path}", include_in_schema=False)
+        async def serve_frontend(full_path: str):
+            file_path = static_dir / full_path
+            if file_path.exists() and file_path.is_file():
+                return FileResponse(file_path)
+            return FileResponse(static_dir / "index.html")

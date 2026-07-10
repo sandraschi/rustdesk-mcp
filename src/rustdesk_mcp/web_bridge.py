@@ -4,24 +4,25 @@ Backend Bridge for RustDesk MCP Webapp.
 Exposes MCP tools via FastAPI on port 10805.
 """
 
-import asyncio
 import logging
 import os
 import sys
-import uvicorn
 from pathlib import Path
-from fastapi import FastAPI, Depends, HTTPException
+
+import uvicorn
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Add the project root to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from fastmcp import FastMCP
+
 from rustdesk_mcp.config import get_config
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
 from rustdesk_mcp.tools import RustDeskTools
 from rustdesk_mcp.web import setup_webapp
-from fastmcp import FastMCP
 
 # Configure logging
 logging.basicConfig(
@@ -93,14 +94,14 @@ async def get_detailed_status():
 
 
 @app.post("/api/connect")
-async def connect(remote_id: str, password: str = None):
+async def connect(remote_id: str, password: str | None = None):
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     return await service.connect_to_peer(remote_id, password)
 
 
 @app.post("/api/control/{action}")
-async def control_action(action: str, body: dict = None):
+async def control_action(action: str, body: dict | None = None):
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
     try:

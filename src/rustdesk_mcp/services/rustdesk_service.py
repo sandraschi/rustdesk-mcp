@@ -6,19 +6,17 @@ import asyncio
 import json
 import logging
 import os
-import subprocess
 import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union, Tuple
+from typing import Any
 
 import aiohttp
 import psutil
-from pydantic import BaseModel, Field
 
-from .session_manager import SessionManager
 from .rustdesk_socket import RustDeskSocketClient
+from .session_manager import SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -28,16 +26,16 @@ class RustDeskService:
 
     def __init__(
         self,
-        rustdesk_path: Optional[Path],
-        config_dir: Optional[Path],
+        rustdesk_path: Path | None,
+        config_dir: Path | None,
         id_server_host: str = "127.0.0.1",
         id_server_port: int = 21116,
         relay_server_host: str = "127.0.0.1",
         relay_server_port: int = 21117,
-        api_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-        api_username: Optional[str] = None,
-        api_password: Optional[str] = None,
+        api_url: str | None = None,
+        api_key: str | None = None,
+        api_username: str | None = None,
+        api_password: str | None = None,
     ):
         """Initialize the RustDesk service.
 
@@ -67,13 +65,13 @@ class RustDeskService:
         )
 
         self.session_manager = SessionManager()
-        self.active_recording: Optional[Dict[str, Any]] = None
+        self.active_recording: dict[str, Any] | None = None
         self.mock_mode = (
             rustdesk_path is None and api_url is None and id_server_host == "127.0.0.1"
         )
-        self.http_session: Optional[aiohttp.ClientSession] = None
-        self.jwt_token: Optional[str] = None
-        self.token_expires_at: Optional[datetime] = None
+        self.http_session: aiohttp.ClientSession | None = None
+        self.jwt_token: str | None = None
+        self.token_expires_at: datetime | None = None
 
         # Initialize socket client for direct RustDesk server communication
         self.socket_client = RustDeskSocketClient(
@@ -100,9 +98,9 @@ class RustDeskService:
         self,
         method: str,
         endpoint: str,
-        data: Optional[Dict] = None,
+        data: dict | None = None,
         requires_auth: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Make an API request to the RustDesk API server."""
         if self.mock_mode:
             return {"success": True, "mock": True, "endpoint": endpoint, "data": data}
@@ -235,8 +233,8 @@ class RustDeskService:
             await self.http_session.close()
 
     async def run_command(
-        self, args: List[Union[str, Path]], timeout: int = 30
-    ) -> Dict[str, Any]:
+        self, args: list[str | Path], timeout: int = 30
+    ) -> dict[str, Any]:
         """Run a RustDesk command with error handling.
 
         Args:
@@ -286,7 +284,7 @@ class RustDeskService:
                 stdout, stderr = await asyncio.wait_for(
                     proc.communicate(), timeout=timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 await proc.wait()
                 raise TimeoutError(f"Command timed out after {timeout} seconds")
@@ -327,7 +325,7 @@ class RustDeskService:
         """
         return self.rustdesk_path is not None and self.rustdesk_path.exists()
 
-    async def get_rustdesk_id(self) -> Dict[str, Any]:
+    async def get_rustdesk_id(self) -> dict[str, Any]:
         """Get the current RustDesk ID.
 
         Returns:
@@ -355,7 +353,7 @@ class RustDeskService:
                 "method": "cli",
             }
 
-    async def list_active_sessions(self) -> Dict[str, Any]:
+    async def list_active_sessions(self) -> dict[str, Any]:
         """List active RustDesk remote desktop sessions via API.
 
         Returns:
@@ -475,10 +473,10 @@ class RustDeskService:
             }
 
         except Exception as e:
-            logger.exception(f"Failed to list active sessions: {str(e)}")
+            logger.exception(f"Failed to list active sessions: {e!s}")
             return {"success": False, "error": str(e), "sessions": [], "count": 0}
 
-    async def get_address_book(self) -> Dict[str, Any]:
+    async def get_address_book(self) -> dict[str, Any]:
         """Get RustDesk address book information.
 
         Returns:
@@ -528,7 +526,7 @@ class RustDeskService:
                         else:
                             import json
 
-                            with open(addr_file, "r", encoding="utf-8") as f:
+                            with open(addr_file, encoding="utf-8") as f:
                                 data = json.load(f)
                         used_file = addr_file
                         break
@@ -594,9 +592,9 @@ class RustDeskService:
                 },
             }
         except Exception as e:
-            return {"success": False, "error": f"Failed to read address book: {str(e)}"}
+            return {"success": False, "error": f"Failed to read address book: {e!s}"}
 
-    async def get_detailed_status(self) -> Dict[str, Any]:
+    async def get_detailed_status(self) -> dict[str, Any]:
         """Get detailed RustDesk status information.
 
         Returns:
@@ -620,7 +618,7 @@ class RustDeskService:
 
         return status
 
-    async def get_status(self) -> Dict[str, Any]:
+    async def get_status(self) -> dict[str, Any]:
         """Get the current status of RustDesk.
 
         Returns:
@@ -641,7 +639,7 @@ class RustDeskService:
         result = await self.run_command(["--version"])
         return result.get("output", "unknown")
 
-    async def get_config(self) -> Dict[str, Any]:
+    async def get_config(self) -> dict[str, Any]:
         """Get the current RustDesk configuration.
 
         Returns:
@@ -655,13 +653,13 @@ class RustDeskService:
             return {"status": "config_file_not_found"}
 
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError, PermissionError) as e:
+        except (OSError, json.JSONDecodeError, PermissionError) as e:
             logger.warning("Failed to read RustDesk config: %s", e)
             return {"status": "config_read_error", "error": str(e)}
 
-    async def update_config(self, updates: Dict[str, Any]) -> Dict[str, Any]:
+    async def update_config(self, updates: dict[str, Any]) -> dict[str, Any]:
         """Update RustDesk configuration.
 
         Args:
@@ -679,7 +677,7 @@ class RustDeskService:
 
         return config
 
-    async def connect(self, peer_id: str, password: str) -> Dict[str, Any]:
+    async def connect(self, peer_id: str, password: str) -> dict[str, Any]:
         """Connect to a remote peer via API.
 
         Args:
@@ -733,7 +731,7 @@ class RustDeskService:
             logger.exception(f"Failed to connect to peer {peer_id}")
             return {"success": False, "error": str(e), "session_id": session["id"]}
 
-    async def disconnect(self, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def disconnect(self, session_id: str | None = None) -> dict[str, Any]:
         """Disconnect from the current session or a specific session.
 
         Args:
@@ -779,7 +777,7 @@ class RustDeskService:
             logger.exception("Error disconnecting session")
             return {"success": False, "error": str(e)}
 
-    async def get_connection_info(self) -> Dict[str, Any]:
+    async def get_connection_info(self) -> dict[str, Any]:
         """Get information about the current connection.
 
         Returns:
@@ -787,7 +785,7 @@ class RustDeskService:
         """
         return await self.run_command(["--info"])
 
-    async def get_performance_metrics(self) -> Dict[str, Any]:
+    async def get_performance_metrics(self) -> dict[str, Any]:
         """Get system performance metrics.
 
         Returns:
@@ -834,8 +832,8 @@ class RustDeskService:
 
     async def transfer_file(
         self, local_path: str, remote_path: str, direction: str = "upload",
-        peer_id: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        peer_id: str | None = None,
+    ) -> dict[str, Any]:
         """Transfer files to/from remote peer via RustDesk protocol.
 
         Attempts rustdesk++ fork API (--api-server :10806) first,
@@ -871,7 +869,7 @@ class RustDeskService:
                                 "message": f"File {direction} completed via fork API",
                                 "data": data,
                             }
-        except (aiohttp.ClientError, asyncio.TimeoutError, Exception):
+        except (TimeoutError, aiohttp.ClientError, Exception):
             pass
 
         # Try fork CLI --send-file / --recv-file (20s timeout, not 120)
@@ -887,10 +885,10 @@ class RustDeskService:
                     *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
                 try:
-                    stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
+                    stdout, _stderr = await asyncio.wait_for(proc.communicate(), timeout=20)
                     if proc.returncode == 0:
                         return {"success": True, "message": f"File {direction} via fork CLI", "output": stdout.decode()}
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     proc.kill()
                     await proc.wait()
             except Exception:
@@ -957,7 +955,7 @@ class RustDeskService:
             ],
         }
 
-    async def list_remote_files(self, remote_path: str = "/") -> Dict[str, Any]:
+    async def list_remote_files(self, remote_path: str = "/") -> dict[str, Any]:
         """List files in remote directory."""
         if self.mock_mode:
             return {
@@ -992,7 +990,7 @@ class RustDeskService:
             ],
         }
 
-    async def take_screenshot(self, save_path: Optional[str] = None) -> Dict[str, Any]:
+    async def take_screenshot(self, save_path: str | None = None) -> dict[str, Any]:
         """Capture screenshot of remote desktop."""
         if self.mock_mode:
             return {
@@ -1032,8 +1030,8 @@ class RustDeskService:
         }
 
     async def start_screen_recording(
-        self, save_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, save_path: str | None = None
+    ) -> dict[str, Any]:
         """Start recording the remote desktop session."""
         if self.mock_mode:
             return {
@@ -1053,7 +1051,7 @@ class RustDeskService:
             ],
         }
 
-    async def stop_screen_recording(self) -> Dict[str, Any]:
+    async def stop_screen_recording(self) -> dict[str, Any]:
         """Stop the current screen recording."""
         if self.mock_mode:
             return {
@@ -1071,7 +1069,7 @@ class RustDeskService:
             ],
         }
 
-    async def get_connection_quality(self) -> Dict[str, Any]:
+    async def get_connection_quality(self) -> dict[str, Any]:
         """Get detailed connection quality metrics."""
         if self.mock_mode:
             return {
@@ -1110,7 +1108,7 @@ class RustDeskService:
 
     async def monitor_resource_usage(
         self, duration_seconds: int = 60, interval: float = 5.0
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Monitor system resource usage over time.
 
         Args:
@@ -1146,7 +1144,7 @@ class RustDeskService:
                     if conn_result.get("success", False):
                         conn_quality = conn_result.get("connection_quality", {})
                 except Exception as e:
-                    logger.warning(f"Failed to get connection quality: {str(e)}")
+                    logger.warning(f"Failed to get connection quality: {e!s}")
 
                 # Add to measurements
                 measurements.append(
@@ -1217,7 +1215,7 @@ class RustDeskService:
             }
 
         except Exception as e:
-            logger.exception(f"Resource monitoring failed: {str(e)}")
+            logger.exception(f"Resource monitoring failed: {e!s}")
             return {
                 "success": False,
                 "error": str(e),

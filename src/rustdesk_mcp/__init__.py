@@ -9,4 +9,4 @@ __version__ = "0.1.0"
 from .config import Config, get_config
 from .server import app, main
 
-__all__ = ["app", "main", "Config", "get_config"]
+__all__ = ["Config", "app", "get_config", "main"]

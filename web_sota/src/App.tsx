@@ -13,35 +13,35 @@ import { Skills } from "@/pages/skills";
 import { Status } from "@/pages/status";
 import { Tools } from "@/pages/tools";
 import {
-  Navigate,
-  Route,
-  BrowserRouter as Router,
-  Routes,
+	Navigate,
+	Route,
+	BrowserRouter as Router,
+	Routes,
 } from "react-router-dom";
 
 function App() {
-  return (
-    <Router>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/status" element={<Status />} />
-          <Route path="/server-status" element={<ServerStatus />} />
-          <Route path="/apps" element={<Apps />} />
-          <Route path="/chat" element={<Chat />} />
-          <Route path="/tools" element={<Tools />} />
-          <Route path="/skills" element={<Skills />} />
-          <Route path="/api-docs" element={<ApiDocs />} />
-          <Route path="/help" element={<Help />} />
-          <Route path="/control" element={<Control />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/logs" element={<Logging />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
-    </Router>
-  );
+	return (
+		<Router>
+			<AppLayout>
+				<Routes>
+					<Route path="/" element={<Dashboard />} />
+					<Route path="/status" element={<Status />} />
+					<Route path="/server-status" element={<ServerStatus />} />
+					<Route path="/apps" element={<Apps />} />
+					<Route path="/chat" element={<Chat />} />
+					<Route path="/tools" element={<Tools />} />
+					<Route path="/skills" element={<Skills />} />
+					<Route path="/api-docs" element={<ApiDocs />} />
+					<Route path="/help" element={<Help />} />
+					<Route path="/control" element={<Control />} />
+					<Route path="/about" element={<About />} />
+					<Route path="/logs" element={<Logging />} />
+					<Route path="/settings" element={<Settings />} />
+					<Route path="*" element={<Navigate to="/" replace />} />
+				</Routes>
+			</AppLayout>
+		</Router>
+	);
 }
 
 export default App;

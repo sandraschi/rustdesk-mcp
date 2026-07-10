@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 (2026-07-10)
+
+### New Features
+- **Headless CLI** — New rustdesk++ fork with full headless operation:
+  - `--status` — Print local RustDesk ID, service status, rendezvous/relay servers
+  - `--peer-info <peer_id>` — Check peer online status via hbbs
+  - `--get-id` — Print local RustDesk ID
+  - `--version` — Print version
+  - `--send-file`, `--recv-file`, `--list-dir`, `--delete-remote`, `--move-remote`, `--send-dir` — File operations via relay (password optional for passwordless peers)
+  - `--api-server [port]` — Start HTTP API server (default 10806)
+  - `--ipc-send <peer_id> <local> <remote>` — Send file via IPC tunnel
+  - `--login` — OAuth login, prints token
+  - `--option <key> [value]` — Get/set config options
+
+### Bug Fixes
+- **Server fixes** — Various stability and reliability improvements in the rustdesk++ fork server components
+
 ## 0.1.0 (2026-07-07)
 
 ### Security

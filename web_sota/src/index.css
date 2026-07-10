@@ -3,90 +3,90 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --background: 230 25% 4%;
-    --foreground: 210 40% 98%;
-    --card: 230 25% 6%;
-    --card-foreground: 210 40% 98%;
-    --popover: 230 25% 5%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 215 25% 15%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 91% 60%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 215 25% 15%;
-    --input: 215 25% 15%;
-    --ring: 217 91% 60%;
-    --radius: 0.75rem;
-  }
+	:root {
+		--background: 230 25% 4%;
+		--foreground: 210 40% 98%;
+		--card: 230 25% 6%;
+		--card-foreground: 210 40% 98%;
+		--popover: 230 25% 5%;
+		--popover-foreground: 210 40% 98%;
+		--primary: 217 91% 60%;
+		--primary-foreground: 210 40% 98%;
+		--secondary: 215 25% 15%;
+		--secondary-foreground: 210 40% 98%;
+		--muted: 215 25% 12%;
+		--muted-foreground: 215 20% 65%;
+		--accent: 217 91% 60%;
+		--accent-foreground: 210 40% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 210 40% 98%;
+		--border: 215 25% 15%;
+		--input: 215 25% 15%;
+		--ring: 217 91% 60%;
+		--radius: 0.75rem;
+	}
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+	* {
+		@apply border-border;
+	}
 
-  body {
-    @apply bg-background text-foreground antialiased;
-    color-scheme: dark;
-    background-image: radial-gradient(
-        at 0% 0%,
-        rgba(37, 99, 235, 0.05) 0px,
-        transparent 50%
-      ),
-      radial-gradient(at 100% 0%, rgba(29, 78, 216, 0.05) 0px, transparent 50%);
-  }
+	body {
+		@apply bg-background text-foreground antialiased;
+		color-scheme: dark;
+		background-image: radial-gradient(
+				at 0% 0%,
+				rgba(37, 99, 235, 0.05) 0px,
+				transparent 50%
+			),
+			radial-gradient(at 100% 0%, rgba(29, 78, 216, 0.05) 0px, transparent 50%);
+	}
 
-  select,
-  input,
-  textarea {
-    color-scheme: dark;
-  }
+	select,
+	input,
+	textarea {
+		color-scheme: dark;
+	}
 }
 
 .glass-panel {
-  @apply bg-card/60 backdrop-blur-xl border border-white/5;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+	@apply bg-card/60 backdrop-blur-xl border border-white/5;
+	box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 
 .neon-border {
-  @apply relative;
+	@apply relative;
 }
 
 .neon-border::after {
-  content: "";
-  @apply absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[inherit] opacity-20 blur-sm pointer-events-none;
+	content: "";
+	@apply absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-[inherit] opacity-20 blur-sm pointer-events-none;
 }
 
 .neon-glow {
-  text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px
-    rgba(59, 130, 246, 0.3);
+	text-shadow: 0 0 10px rgba(59, 130, 246, 0.5), 0 0 20px
+		rgba(59, 130, 246, 0.3);
 }
 
 .text-gradient {
-  @apply bg-clip-text text-transparent bg-gradient-to-br from-white via-blue-100 to-blue-300;
+	@apply bg-clip-text text-transparent bg-gradient-to-br from-white via-blue-100 to-blue-300;
 }
 
 @keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
+	0% {
+		transform: translateY(0px);
+	}
 
-  50% {
-    transform: translateY(-10px);
-  }
+	50% {
+		transform: translateY(-10px);
+	}
 
-  100% {
-    transform: translateY(0px);
-  }
+	100% {
+		transform: translateY(0px);
+	}
 }
 
 .animate-float {
-  animation: float 6s ease-in-out infinite;
+	animation: float 6s ease-in-out infinite;
 }

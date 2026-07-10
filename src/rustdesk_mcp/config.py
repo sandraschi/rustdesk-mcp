@@ -4,10 +4,9 @@ Configuration management for RustDeskMCP.
 
 import os
 from pathlib import Path
-from typing import Optional
 
+from pydantic import DirectoryPath, Field, FilePath, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator, DirectoryPath, FilePath
 
 
 class Config(BaseSettings):
@@ -17,10 +16,10 @@ class Config(BaseSettings):
     host: str = Field("0.0.0.0", env="HOST")
     port: int = Field(10805, env="PORT")
     log_level: str = Field("INFO", env="LOG_LEVEL")
-    
+
     # RustDesk configuration (optional for development)
-    rustdesk_path: Optional[FilePath] = Field(None, env="RUSTDESK_PATH")
-    rustdesk_config_dir: Optional[DirectoryPath] = Field(None, env="RUSTDESK_CONFIG_DIR")
+    rustdesk_path: FilePath | None = Field(None, env="RUSTDESK_PATH")
+    rustdesk_config_dir: DirectoryPath | None = Field(None, env="RUSTDESK_CONFIG_DIR")
 
     # RustDesk server configuration (direct socket communication)
     rustdesk_id_server_host: str = Field("127.0.0.1", env="RUSTDESK_ID_SERVER_HOST")
@@ -29,30 +28,30 @@ class Config(BaseSettings):
     rustdesk_relay_server_port: int = Field(21117, env="RUSTDESK_RELAY_SERVER_PORT")
 
     # Legacy API configuration (optional, for compatibility)
-    rustdesk_api_url: Optional[str] = Field(None, env="RUSTDESK_API_URL")
-    rustdesk_api_key: Optional[str] = Field(None, env="RUSTDESK_API_KEY")
+    rustdesk_api_url: str | None = Field(None, env="RUSTDESK_API_URL")
+    rustdesk_api_key: str | None = Field(None, env="RUSTDESK_API_KEY")
     rustdesk_api_username: str = Field("admin", env="RUSTDESK_API_USERNAME")
     rustdesk_api_password: str = Field("", env="RUSTDESK_API_PASSWORD")
-    
+
     # MCP configuration
     mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")
     mcp_server_description: str = Field(
         "FastMCP 2.10 server for RustDesk remote desktop management",
         env="MCP_SERVER_DESCRIPTION"
     )
-    
+
     # Optional authentication
     auth_enabled: bool = Field(False, env="AUTH_ENABLED")
-    auth_username: Optional[str] = Field(None, env="AUTH_USERNAME")
-    auth_password: Optional[str] = Field(None, env="AUTH_PASSWORD")
-    
+    auth_username: str | None = Field(None, env="AUTH_USERNAME")
+    auth_password: str | None = Field(None, env="AUTH_PASSWORD")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True,
     )
-    
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -61,10 +60,10 @@ class Config(BaseSettings):
         if v.upper() not in valid_levels:
             raise ValueError(f"Invalid log level. Must be one of: {', '.join(valid_levels)}")
         return v.upper()
-    
+
     @field_validator("rustdesk_path", mode="before")
     @classmethod
-    def validate_rustdesk_path(cls, v: Optional[str]) -> Optional[Path]:
+    def validate_rustdesk_path(cls, v: str | None) -> Path | None:
         """Validate RustDesk executable path."""
         if v is None:
             # Try to auto-detect RustDesk installation
@@ -94,7 +93,7 @@ class Config(BaseSettings):
 
     @field_validator("rustdesk_config_dir", mode="before")
     @classmethod
-    def validate_rustdesk_config_dir(cls, v: Optional[str]) -> Optional[Path]:
+    def validate_rustdesk_config_dir(cls, v: str | None) -> Path | None:
         """Validate RustDesk config directory."""
         if v is None:
             # Try to auto-detect RustDesk config directory
@@ -135,7 +134,7 @@ class Config(BaseSettings):
 
 
 # Global config instance
-_config: Optional[Config] = None
+_config: Config | None = None
 
 
 def get_config() -> Config:

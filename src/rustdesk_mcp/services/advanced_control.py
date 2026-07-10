@@ -4,11 +4,12 @@ Handles safe input simulation and window management with security guards.
 """
 
 import logging
-import time
-from typing import Dict, Optional, Any, Tuple
-import pywinctl as pwc
-from pywinauto import mouse, keyboard
 import os
+import time
+from typing import Any
+
+import pywinctl as pwc
+from pywinauto import keyboard, mouse
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class AdvancedControlService:
         except Exception as e:
             logger.error(f"Failed to write to audit log: {e}")
 
-    def _check_safety(self) -> Tuple[bool, str]:
+    def _check_safety(self) -> tuple[bool, str]:
         """Verify if remote control is enabled and rate-limiting is respected."""
         if not self.control_enabled:
             return False, "Remote control is disabled by policy."
@@ -47,7 +48,7 @@ class AdvancedControlService:
 
         return True, ""
 
-    def find_rustdesk_window(self) -> Optional[pwc.Window]:
+    def find_rustdesk_window(self) -> pwc.Window | None:
         """Find the active RustDesk remote session window."""
         windows = pwc.getWindowsWithTitle("RustDesk", condition=pwc.Re.CONTAINS)
         # Filter for windows that look like remote sessions (usually have the ID in title)
@@ -61,7 +62,7 @@ class AdvancedControlService:
 
     async def remote_click(
         self, x: int, y: int, button: str = "left"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Perform a safe mouse click in the RustDesk window."""
         safe, message = self._check_safety()
         if not safe:
@@ -97,7 +98,7 @@ class AdvancedControlService:
             self._log_audit("click", {"x": x, "y": y, "error": str(e)}, False)
             return {"success": False, "error": str(e)}
 
-    async def remote_type(self, text: str) -> Dict[str, Any]:
+    async def remote_type(self, text: str) -> dict[str, Any]:
         """Perform safe keyboard input in the RustDesk window."""
         safe, message = self._check_safety()
         if not safe:

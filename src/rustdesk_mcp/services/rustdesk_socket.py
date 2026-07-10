@@ -8,10 +8,9 @@ without needing the full management server infrastructure.
 Based on lejianwen/rustdesk-api service/serverCmd.go
 """
 
+import logging
 import socket
 import time
-import logging
-from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +33,7 @@ class RustDeskSocketClient:
         self.id_server = (id_server_host, id_server_port)
         self.relay_server = (relay_server_host, relay_server_port)
 
-    def _send_command(self, server_addr: Tuple[str, int], command: str, timeout: float = 1.0) -> str:
+    def _send_command(self, server_addr: tuple[str, int], command: str, timeout: float = 1.0) -> str:
         """Send a command to a RustDesk server via TCP socket.
 
         Based on lejianwen/rustdesk-api SendSocketCmd method.
@@ -50,7 +49,7 @@ class RustDeskSocketClient:
         host, port = server_addr
 
         # Try IPv6 first, then IPv4 (following lejianwen pattern)
-        for family, addr in [(socket.AF_INET6, f"[::1]"), (socket.AF_INET, host)]:
+        for family, addr in [(socket.AF_INET6, "[::1]"), (socket.AF_INET, host)]:
             try:
                 sock = socket.socket(family, socket.SOCK_STREAM)
                 sock.settimeout(timeout)
@@ -73,7 +72,7 @@ class RustDeskSocketClient:
                 sock.close()
                 return response.strip()
 
-            except (socket.error, OSError) as e:
+            except OSError as e:
                 logger.debug(f"Socket {family} connection to {host}:{port} failed: {e}")
                 if sock:
                     sock.close()
@@ -108,7 +107,7 @@ class RustDeskSocketClient:
         # For now, return empty list as we need to discover the protocol
         return []
 
-    def get_peer_info(self, peer_id: str) -> Optional[dict]:
+    def get_peer_info(self, peer_id: str) -> dict | None:
         """Get information about a specific peer."""
         try:
             # Try basic peer query command

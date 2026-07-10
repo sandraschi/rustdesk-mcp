@@ -1,8 +1,10 @@
 import logging
 import subprocess
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
+
 from ...config import Config, get_config
 from ...services.rustdesk_service import RustDeskService
 from . import models
@@ -25,7 +27,7 @@ def get_rustdesk_service(config: Config = Depends(get_config)) -> RustDeskServic
 )
 async def get_status(
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get the current status of the service."""
     try:
         status_info = await service.get_status()
@@ -39,7 +41,7 @@ async def get_status(
         logger.exception("Error getting service status")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting service status: {str(e)}",
+            detail=f"Error getting service status: {e!s}",
         )
 
 
@@ -51,7 +53,7 @@ async def get_status(
 )
 async def get_info(
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get information about the RustDesk service."""
     try:
         status_info = await service.get_status()
@@ -64,7 +66,7 @@ async def get_info(
         logger.exception("Error getting RustDesk info")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting RustDesk info: {str(e)}",
+            detail=f"Error getting RustDesk info: {e!s}",
         )
 
 
@@ -76,7 +78,7 @@ async def get_info(
 )
 async def get_connection_info(
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get information about the current connection."""
     try:
         return await service.get_connection_info()
@@ -84,7 +86,7 @@ async def get_connection_info(
         logger.exception("Error getting connection info")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting connection info: {str(e)}",
+            detail=f"Error getting connection info: {e!s}",
         )
 
 
@@ -97,7 +99,7 @@ async def get_connection_info(
 async def connect_to_peer(
     request: models.ConnectRequest,
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Connect to a RustDesk peer."""
     try:
         result = await service.connect(request.peer_id, request.password)
@@ -117,7 +119,7 @@ async def connect_to_peer(
         logger.exception("Error connecting to peer")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error connecting to peer: {str(e)}",
+            detail=f"Error connecting to peer: {e!s}",
         )
 
 
@@ -129,7 +131,7 @@ async def connect_to_peer(
 )
 async def disconnect(
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Disconnect from the current session."""
     try:
         result = await service.disconnect()
@@ -142,7 +144,7 @@ async def disconnect(
         logger.exception("Error disconnecting")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error disconnecting: {str(e)}",
+            detail=f"Error disconnecting: {e!s}",
         )
 
 
@@ -154,7 +156,7 @@ async def disconnect(
 )
 async def get_performance(
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get system performance metrics."""
     try:
         return await service.get_performance_metrics()
@@ -162,7 +164,7 @@ async def get_performance(
         logger.exception("Error getting performance metrics")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting performance metrics: {str(e)}",
+            detail=f"Error getting performance metrics: {e!s}",
         )
 
 
@@ -175,7 +177,7 @@ async def get_performance(
 async def update_config(
     config_update: models.ConfigUpdate,
     service: RustDeskService = Depends(get_rustdesk_service),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Update RustDesk configuration."""
     try:
         updated_config = await service.update_config(config_update.updates)
@@ -188,7 +190,7 @@ async def update_config(
         logger.exception("Error updating configuration")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error updating configuration: {str(e)}",
+            detail=f"Error updating configuration: {e!s}",
         )
 
 

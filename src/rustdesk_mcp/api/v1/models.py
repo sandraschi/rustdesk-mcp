@@ -2,8 +2,9 @@
 Pydantic models for RustDeskMCP API v1.
 """
 
-from typing import Optional, Dict, Any, List
-from pydantic import BaseModel, Field, HttpUrl
+from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class StatusResponse(BaseModel):
@@ -20,8 +21,8 @@ class ServiceInfo(BaseModel):
 
     is_running: bool = Field(..., description="Whether the service is running")
     version: str = Field(..., description="RustDesk version")
-    pid: Optional[int] = Field(None, description="Process ID if running")
-    config: Dict[str, Any] = Field(
+    pid: int | None = Field(None, description="Process ID if running")
+    config: dict[str, Any] = Field(
         default_factory=dict, description="Service configuration"
     )
 
@@ -31,8 +32,8 @@ class ConnectionInfo(BaseModel):
 
     peer_id: str = Field(..., description="Peer ID")
     connected: bool = Field(..., description="Whether connected to peer")
-    last_connected: Optional[str] = Field(None, description="Last connection timestamp")
-    connection_stats: Optional[Dict[str, Any]] = Field(
+    last_connected: str | None = Field(None, description="Last connection timestamp")
+    connection_stats: dict[str, Any] | None = Field(
         None, description="Connection statistics"
     )
 
@@ -40,17 +41,17 @@ class ConnectionInfo(BaseModel):
 class PerformanceMetrics(BaseModel):
     """System performance metrics."""
 
-    cpu: Dict[str, Any] = Field(..., description="CPU usage statistics")
-    memory: Dict[str, Any] = Field(..., description="Memory usage statistics")
-    disk: Dict[str, Any] = Field(..., description="Disk usage statistics")
-    network: Dict[str, Any] = Field(..., description="Network I/O statistics")
+    cpu: dict[str, Any] = Field(..., description="CPU usage statistics")
+    memory: dict[str, Any] = Field(..., description="Memory usage statistics")
+    disk: dict[str, Any] = Field(..., description="Disk usage statistics")
+    network: dict[str, Any] = Field(..., description="Network I/O statistics")
 
 
 class ErrorResponse(BaseModel):
     """Standard error response."""
 
     error: str = Field(..., description="Error message")
-    details: Optional[Dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         None, description="Additional error details"
     )
 
@@ -66,7 +67,7 @@ class ConnectRequest(BaseModel):
 class ConfigUpdate(BaseModel):
     """Model for updating RustDesk configuration."""
 
-    updates: Dict[str, Any] = Field(..., description="Configuration updates to apply")
+    updates: dict[str, Any] = Field(..., description="Configuration updates to apply")
 
 
 class CommandResponse(BaseModel):
@@ -74,7 +75,7 @@ class CommandResponse(BaseModel):
 
     success: bool = Field(..., description="Whether the command was successful")
     message: str = Field(..., description="Result message")
-    data: Optional[Dict[str, Any]] = Field(None, description="Response data")
+    data: dict[str, Any] | None = Field(None, description="Response data")
 
 
 class SystemInfo(BaseModel):

@@ -4,10 +4,7 @@ Documentation for RustDesk MCP Server.
 This module provides comprehensive documentation for the RustDesk MCP server,
 including tool descriptions, usage examples, and feature overview.
 """
-from typing import Dict, List, Any
-from pathlib import Path
-import inspect
-import json
+from typing import Any
 
 # Main documentation structure
 MCP_DOCS = {
@@ -155,7 +152,7 @@ MCP_DOCS = {
             save_path="/screenshots/screen.png",
             session_id="my-session-1"
         )
-        
+
         # Start recording
         await start_recording(
             save_path="/recordings/session.mp4",
@@ -167,15 +164,15 @@ MCP_DOCS = {
 
 class HelpTool:
     """Help tool for RustDesk MCP server documentation."""
-    
+
     @staticmethod
-    async def get_help(tool_name: str = None) -> Dict[str, Any]:
+    async def get_help(tool_name: str | None = None) -> dict[str, Any]:
         """
         Get help documentation for the MCP server or a specific tool.
-        
+
         Args:
             tool_name: Optional name of the tool to get specific help for
-            
+
         Returns:
             Dict containing help documentation
         """
@@ -192,10 +189,10 @@ class HelpTool:
                             "category": category
                         }
             return {"error": f"Tool '{tool_name}' not found"}
-        
+
         # Return complete documentation if no specific tool is requested
         return MCP_DOCS
-    
+
     @classmethod
     def get_tool_definition(cls):
         """Get the MCP tool definition for the help command."""
