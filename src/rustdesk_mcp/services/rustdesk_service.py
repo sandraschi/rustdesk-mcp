@@ -594,6 +594,114 @@ class RustDeskService:
         except Exception as e:
             return {"success": False, "error": f"Failed to read address book: {e!s}"}
 
+    async def add_address_book_entry(self, peer_id: str, alias: str = "", note: str = "", tags: list[str] | None = None) -> dict[str, Any]:
+        """Add a peer to the address book.
+
+        Args:
+            peer_id: RustDesk ID of the peer.
+            alias: Optional display alias.
+            note: Optional note.
+            tags: Optional tags list.
+
+        Returns:
+            dict: Operation result.
+        """
+        if self.mock_mode:
+            return {"success": False, "error": "Mock mode"}
+        if not self.config_dir:
+            return {"success": False, "error": "Config directory not available"}
+        addr_file = self.config_dir / "addrbook.toml"
+        try:
+            data = {}
+            if addr_file.exists():
+                import tomllib
+                with open(addr_file, "rb") as f:
+                    data = tomllib.load(f)
+            peers = data.setdefault("peers", {})
+            if peer_id in peers:
+                return {"success": False, "error": f"Peer {peer_id} already exists"}
+            peers[peer_id] = {"alias": alias, "note": note, "tags": tags or [], "added": str(__import__("datetime").datetime.now())}
+            import tomli_w
+            with open(addr_file, "wb") as f:
+                tomli_w.dump(data, f)
+            return {"success": True, "message": f"Added peer {peer_id}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def update_address_book_entry(self, peer_id: str, alias: str | None = None, note: str | None = None, tags: list[str] | None = None) -> dict[str, Any]:
+        """Update a peer in the address book.
+
+        Args:
+            peer_id: RustDesk ID of the peer.
+            alias: New alias (None to keep).
+            note: New note (None to keep).
+            tags: New tags (None to keep).
+
+        Returns:
+            dict: Operation result.
+        """
+        if self.mock_mode:
+            return {"success": False, "error": "Mock mode"}
+        if not self.config_dir:
+            return {"success": False, "error": "Config directory not available"}
+        addr_file = self.config_dir / "addrbook.toml"
+        try:
+            import tomllib
+            if not addr_file.exists():
+                return {"success": False, "error": "Address book not found"}
+            with open(addr_file, "rb") as f:
+                data = tomllib.load(f)
+            peers = data.get("peers", {})
+            if peer_id not in peers:
+                return {"success": False, "error": f"Peer {peer_id} not found"}
+            entry = peers[peer_id]
+            if isinstance(entry, dict):
+                if alias is not None:
+                    entry["alias"] = alias
+                if note is not None:
+                    entry["note"] = note
+                if tags is not None:
+                    entry["tags"] = tags
+            else:
+                peers[peer_id] = {"alias": alias or str(entry), "note": note or "", "tags": tags or []}
+            import tomli_w
+            with open(addr_file, "wb") as f:
+                tomli_w.dump(data, f)
+            return {"success": True, "message": f"Updated peer {peer_id}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def remove_address_book_entry(self, peer_id: str) -> dict[str, Any]:
+        """Remove a peer from the address book.
+
+        Args:
+            peer_id: RustDesk ID of the peer.
+
+        Returns:
+            dict: Operation result.
+        """
+        if self.mock_mode:
+            return {"success": False, "error": "Mock mode"}
+        if not self.config_dir:
+            return {"success": False, "error": "Config directory not available"}
+        addr_file = self.config_dir / "addrbook.toml"
+        try:
+            import tomllib
+            if not addr_file.exists():
+                return {"success": False, "error": "Address book not found"}
+            with open(addr_file, "rb") as f:
+                data = tomllib.load(f)
+            peers = data.get("peers", {})
+            if peer_id not in peers:
+                return {"success": False, "error": f"Peer {peer_id} not found"}
+            del peers[peer_id]
+            import tomli_w
+            with open(addr_file, "wb") as f:
+                tomli_w.dump(data, f)
+            return {"success": True, "message": f"Removed peer {peer_id}"}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
     async def get_detailed_status(self) -> dict[str, Any]:
         """Get detailed RustDesk status information.
 

@@ -356,6 +356,54 @@ async def register_tools():
         """
         return await rustdesk_service.get_address_book()
 
+    @mcp.tool(annotations=_MUTATING)
+    async def add_address_book_entry(
+        peer_id: Annotated[str, Field(description="RustDesk ID of the peer to add.")],
+        alias: Annotated[str | None, Field(description="Optional display alias.")] = None,
+        note: Annotated[str | None, Field(description="Optional note.")] = None,
+        tags: Annotated[list[str] | None, Field(description="Optional tags.")] = None,
+    ) -> dict[str, Any]:
+        """Add a peer to the RustDesk address book.
+
+        ## Return Format
+        {"success": bool, "message": str}
+
+        ## Examples
+        await add_address_book_entry(peer_id="123456789", alias="Office PC")
+        """
+        return await rustdesk_service.add_address_book_entry(peer_id, alias or "", note or "", tags)
+
+    @mcp.tool(annotations=_MUTATING)
+    async def update_address_book_entry(
+        peer_id: Annotated[str, Field(description="RustDesk ID of the peer to update.")],
+        alias: Annotated[str | None, Field(description="New alias (omit to keep current).")] = None,
+        note: Annotated[str | None, Field(description="New note (omit to keep current).")] = None,
+        tags: Annotated[list[str] | None, Field(description="New tags (omit to keep current).")] = None,
+    ) -> dict[str, Any]:
+        """Update a peer in the RustDesk address book.
+
+        ## Return Format
+        {"success": bool, "message": str}
+
+        ## Examples
+        await update_address_book_entry(peer_id="123456789", alias="Home PC")
+        """
+        return await rustdesk_service.update_address_book_entry(peer_id, alias, note, tags)
+
+    @mcp.tool(annotations=_MUTATING)
+    async def remove_address_book_entry(
+        peer_id: Annotated[str, Field(description="RustDesk ID of the peer to remove.")],
+    ) -> dict[str, Any]:
+        """Remove a peer from the RustDesk address book.
+
+        ## Return Format
+        {"success": bool, "message": str}
+
+        ## Examples
+        await remove_address_book_entry(peer_id="123456789")
+        """
+        return await rustdesk_service.remove_address_book_entry(peer_id)
+
     # Register connection tools
     @mcp.tool(annotations=_MUTATING)
     async def connect_to_peer(
