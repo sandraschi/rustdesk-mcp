@@ -16,6 +16,7 @@ class WolService:
     def _detected(self):
         try:
             import wakeonlan  # noqa: F401
+
             self._wakeonlan_available = True
         except ImportError:
             self._wakeonlan_available = False

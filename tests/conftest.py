@@ -1,11 +1,11 @@
 """Test configuration and fixtures for RustDesk MCP."""
 
 import asyncio
-import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi.testclient import TestClient
 from fastmcp import FastMCP
 
@@ -33,10 +33,7 @@ def mock_config(temp_dir):
     config_dir.mkdir()
 
     # Pass values directly to Config constructor
-    config = Config(
-        rustdesk_path=str(rustdesk_exe),
-        rustdesk_config_dir=str(config_dir)
-    )
+    config = Config(rustdesk_path=str(rustdesk_exe), rustdesk_config_dir=str(config_dir))
     return config
 
 
@@ -80,11 +77,11 @@ def mock_rustdesk_tools(mock_rustdesk_service):
 @pytest.fixture
 def test_client(mock_rustdesk_service):
     """Create a test client for FastAPI endpoints."""
-    from rustdesk_mcp.server import app
-
     # Mock the global rustdesk_service
     import rustdesk_mcp.server
-    original_service = getattr(rustdesk_mcp.server, 'rustdesk_service', None)
+    from rustdesk_mcp.server import app
+
+    original_service = getattr(rustdesk_mcp.server, "rustdesk_service", None)
     rustdesk_mcp.server.rustdesk_service = mock_rustdesk_service
 
     with TestClient(app) as client:
@@ -112,9 +109,9 @@ def event_loop():
 @pytest.fixture(autouse=True)
 def mock_subprocess():
     """Mock subprocess calls for all tests."""
-    with patch('asyncio.create_subprocess_exec') as mock_proc:
+    with patch("asyncio.create_subprocess_exec") as mock_proc:
         mock_process = AsyncMock()
-        mock_process.communicate.return_value = (b'{"success": true}', b'')
+        mock_process.communicate.return_value = (b'{"success": true}', b"")
         mock_process.returncode = 0
         mock_proc.return_value = mock_process
         yield mock_proc
@@ -123,32 +120,21 @@ def mock_subprocess():
 @pytest.fixture(autouse=True)
 def mock_psutil():
     """Mock psutil for system monitoring tests."""
-    with patch('psutil.cpu_percent') as mock_cpu, \
-         patch('psutil.virtual_memory') as mock_mem, \
-         patch('psutil.disk_usage') as mock_disk, \
-         patch('psutil.net_io_counters') as mock_net, \
-         patch('psutil.cpu_count') as mock_count, \
-         patch('psutil.process_iter') as mock_proc:
-
+    with (
+        patch("psutil.cpu_percent") as mock_cpu,
+        patch("psutil.virtual_memory") as mock_mem,
+        patch("psutil.disk_usage") as mock_disk,
+        patch("psutil.net_io_counters") as mock_net,
+        patch("psutil.cpu_count") as mock_count,
+        patch("psutil.process_iter") as mock_proc,
+    ):
         mock_cpu.return_value = 45.2
         mock_mem.return_value = MagicMock(
-            total=17179869184,
-            available=8589934592,
-            percent=50.0,
-            used=8589934592,
-            free=8589934592
+            total=17179869184, available=8589934592, percent=50.0, used=8589934592, free=8589934592
         )
-        mock_disk.return_value = MagicMock(
-            total=1000204886016,
-            used=500000000000,
-            free=500000000000,
-            percent=50.0
-        )
+        mock_disk.return_value = MagicMock(total=1000204886016, used=500000000000, free=500000000000, percent=50.0)
         mock_net.return_value = MagicMock(
-            bytes_sent=1000000,
-            bytes_recv=2000000,
-            packets_sent=50000,
-            packets_recv=60000
+            bytes_sent=1000000, bytes_recv=2000000, packets_sent=50000, packets_recv=60000
         )
         mock_count.side_effect = lambda logical=True: 8 if logical else 4
 
@@ -161,11 +147,7 @@ def mock_psutil():
 @pytest.fixture
 def sample_connection_request():
     """Sample connection request for testing."""
-    return {
-        "peer_id": "123456789",
-        "password": "testpassword",
-        "session_id": "test-session-123"
-    }
+    return {"peer_id": "123456789", "password": "testpassword", "session_id": "test-session-123"}
 
 
 @pytest.fixture
@@ -175,24 +157,17 @@ def sample_file_transfer_request():
         "local_path": "/tmp/test.txt",
         "remote_path": "/home/user/test.txt",
         "direction": "upload",
-        "session_id": "test-session-123"
+        "session_id": "test-session-123",
     }
 
 
 @pytest.fixture
 def sample_screenshot_request():
     """Sample screenshot request for testing."""
-    return {
-        "save_path": "/tmp/screenshot.png",
-        "session_id": "test-session-123"
-    }
+    return {"save_path": "/tmp/screenshot.png", "session_id": "test-session-123"}
 
 
 @pytest.fixture
 def sample_monitoring_request():
     """Sample monitoring request for testing."""
-    return {
-        "duration_seconds": 30,
-        "interval": 2.0,
-        "session_id": "test-session-123"
-    }
+    return {"duration_seconds": 30, "interval": 2.0, "session_id": "test-session-123"}

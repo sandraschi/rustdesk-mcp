@@ -13,9 +13,11 @@ from .services.rustdesk_service import RustDeskService
 
 logger = logging.getLogger(__name__)
 
+
 # Request/Response Models
 class ConnectionRequest(BaseModel):
     """Request model for connection operations."""
+
     peer_id: str = Field(..., description="ID of the peer to connect to")
     password: str = Field(..., description="Password for the peer connection")
     session_id: str | None = Field(None, description="Optional session ID for tracking")
@@ -23,6 +25,7 @@ class ConnectionRequest(BaseModel):
 
 class FileTransferRequest(BaseModel):
     """Request model for file transfer operations."""
+
     local_path: str = Field(..., description="Local file path")
     remote_path: str = Field(..., description="Remote file path")
     direction: str = Field("upload", description="'upload' or 'download'")
@@ -32,18 +35,21 @@ class FileTransferRequest(BaseModel):
 
 class ScreenshotRequest(BaseModel):
     """Request model for screenshot operations."""
+
     save_path: str | None = Field(None, description="Optional path to save the screenshot")
     session_id: str | None = Field(None, description="Optional session ID for tracking")
 
 
 class RecordingRequest(BaseModel):
     """Request model for screen recording operations."""
+
     save_path: str | None = Field(None, description="Optional path to save the recording")
     session_id: str | None = Field(None, description="Optional session ID for tracking")
 
 
 class MonitoringRequest(BaseModel):
     """Request model for resource monitoring."""
+
     duration_seconds: int = Field(60, description="Duration to monitor in seconds")
     interval: float = Field(5.0, description="Interval between measurements in seconds")
     session_id: str | None = Field(None, description="Optional session ID for tracking")
@@ -74,23 +80,19 @@ class RustDeskTools:
                     request.session_id,
                     "connected" if result.get("success", False) else "connection_failed",
                     peer_id=request.peer_id,
-                    **result
+                    **result,
                 )
 
             return {
                 "success": result.get("success", False),
                 "session_id": result.get("session_id"),
                 "message": "Connected successfully" if result.get("success") else "Connection failed",
-                "details": result
+                "details": result,
             }
 
         except Exception as e:
             logger.exception(f"Failed to connect to peer: {e!s}")
-            return {
-                "success": False,
-                "error": str(e),
-                "peer_id": request.peer_id
-            }
+            return {"success": False, "error": str(e), "peer_id": request.peer_id}
 
     async def disconnect_peer(self, session_id: str | None = None) -> dict[str, Any]:
         """Disconnect from a peer or all peers.
@@ -107,24 +109,18 @@ class RustDeskTools:
             if session_id and result.get("success", False):
                 # Update session status if we're disconnecting a specific session
                 await self.rustdesk.session_manager.update_session_status(
-                    session_id,
-                    "disconnected",
-                    disconnected_at=result.get("disconnected_at")
+                    session_id, "disconnected", disconnected_at=result.get("disconnected_at")
                 )
 
             return {
                 "success": result.get("success", False),
                 "disconnected_sessions": result.get("disconnected_sessions", []),
-                "message": "Disconnected successfully" if result.get("success") else "Disconnection failed"
+                "message": "Disconnected successfully" if result.get("success") else "Disconnection failed",
             }
 
         except Exception as e:
             logger.exception(f"Failed to disconnect: {e!s}")
-            return {
-                "success": False,
-                "error": str(e),
-                "session_id": session_id
-            }
+            return {"success": False, "error": str(e), "session_id": session_id}
 
     async def transfer_file(self, request: FileTransferRequest) -> dict[str, Any]:
         """Transfer a file to/from a remote peer.
@@ -148,7 +144,7 @@ class RustDeskTools:
                 await self.rustdesk.session_manager.update_session_status(
                     request.session_id,
                     "file_transfer_completed" if result.get("success") else "file_transfer_failed",
-                    transfer_result=result
+                    transfer_result=result,
                 )
 
             return {
@@ -156,7 +152,7 @@ class RustDeskTools:
                 "direction": request.direction,
                 "local_path": request.local_path,
                 "remote_path": request.remote_path,
-                "details": result
+                "details": result,
             }
 
         except Exception as e:
@@ -166,7 +162,7 @@ class RustDeskTools:
                 "error": str(e),
                 "direction": request.direction,
                 "local_path": request.local_path,
-                "remote_path": request.remote_path
+                "remote_path": request.remote_path,
             }
 
     async def take_screenshot(self, request: ScreenshotRequest) -> dict[str, Any]:
@@ -186,18 +182,14 @@ class RustDeskTools:
                 await self.rustdesk.session_manager.update_session_status(
                     request.session_id,
                     "screenshot_taken" if result.get("success") else "screenshot_failed",
-                    screenshot_result=result
+                    screenshot_result=result,
                 )
 
             return result
 
         except Exception as e:
             logger.exception(f"Failed to take screenshot: {e!s}")
-            return {
-                "success": False,
-                "error": str(e),
-                "save_path": request.save_path
-            }
+            return {"success": False, "error": str(e), "save_path": request.save_path}
 
     async def start_recording(self, request: RecordingRequest) -> dict[str, Any]:
         """Start recording the remote desktop session.
@@ -217,18 +209,14 @@ class RustDeskTools:
                     request.session_id,
                     "recording_started",
                     recording_id=result.get("recording_id"),
-                    recording_path=result.get("file_path")
+                    recording_path=result.get("file_path"),
                 )
 
             return result
 
         except Exception as e:
             logger.exception(f"Failed to start recording: {e!s}")
-            return {
-                "success": False,
-                "error": str(e),
-                "save_path": request.save_path
-            }
+            return {"success": False, "error": str(e), "save_path": request.save_path}
 
     async def stop_recording(self, session_id: str | None = None) -> dict[str, Any]:
         """Stop the current screen recording.
@@ -248,17 +236,14 @@ class RustDeskTools:
                     session_id,
                     "recording_stopped",
                     recording_duration=result.get("duration_seconds"),
-                    recording_path=result.get("file_path")
+                    recording_path=result.get("file_path"),
                 )
 
             return result
 
         except Exception as e:
             logger.exception(f"Failed to stop recording: {e!s}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def monitor_resources(self, request: MonitoringRequest) -> dict[str, Any]:
         """Monitor system resource usage.
@@ -271,8 +256,7 @@ class RustDeskTools:
         """
         try:
             result = await self.rustdesk.monitor_resource_usage(
-                duration_seconds=request.duration_seconds,
-                interval=request.interval
+                duration_seconds=request.duration_seconds, interval=request.interval
             )
 
             # Update session if we have a session ID
@@ -280,7 +264,7 @@ class RustDeskTools:
                 await self.rustdesk.session_manager.update_session_status(
                     request.session_id,
                     "monitoring_completed" if result.get("success") else "monitoring_failed",
-                    monitoring_summary=result.get("summary", {})
+                    monitoring_summary=result.get("summary", {}),
                 )
 
             return result
@@ -291,7 +275,7 @@ class RustDeskTools:
                 "success": False,
                 "error": str(e),
                 "duration_seconds": request.duration_seconds,
-                "interval": request.interval
+                "interval": request.interval,
             }
 
     async def get_connection_quality(self, session_id: str | None = None) -> dict[str, Any]:
@@ -309,19 +293,14 @@ class RustDeskTools:
             # Update session if we have a session ID
             if session_id and result.get("success"):
                 await self.rustdesk.session_manager.update_session_status(
-                    session_id,
-                    "connection_quality_checked",
-                    connection_quality=result.get("connection_quality", {})
+                    session_id, "connection_quality_checked", connection_quality=result.get("connection_quality", {})
                 )
 
             return result
 
         except Exception as e:
             logger.exception(f"Failed to get connection quality: {e!s}")
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
     async def list_remote_files(self, remote_path: str = "/", session_id: str | None = None) -> dict[str, Any]:
         """List files in a remote directory.
@@ -339,18 +318,11 @@ class RustDeskTools:
             # Update session if we have a session ID
             if session_id and result.get("success"):
                 await self.rustdesk.session_manager.update_session_status(
-                    session_id,
-                    "remote_files_listed",
-                    directory=remote_path,
-                    file_count=len(result.get("files", []))
+                    session_id, "remote_files_listed", directory=remote_path, file_count=len(result.get("files", []))
                 )
 
             return result
 
         except Exception as e:
             logger.exception(f"Failed to list remote files: {e!s}")
-            return {
-                "success": False,
-                "error": str(e),
-                "directory": remote_path
-            }
+            return {"success": False, "error": str(e), "directory": remote_path}

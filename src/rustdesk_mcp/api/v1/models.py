@@ -22,9 +22,7 @@ class ServiceInfo(BaseModel):
     is_running: bool = Field(..., description="Whether the service is running")
     version: str = Field(..., description="RustDesk version")
     pid: int | None = Field(None, description="Process ID if running")
-    config: dict[str, Any] = Field(
-        default_factory=dict, description="Service configuration"
-    )
+    config: dict[str, Any] = Field(default_factory=dict, description="Service configuration")
 
 
 class ConnectionInfo(BaseModel):
@@ -33,9 +31,7 @@ class ConnectionInfo(BaseModel):
     peer_id: str = Field(..., description="Peer ID")
     connected: bool = Field(..., description="Whether connected to peer")
     last_connected: str | None = Field(None, description="Last connection timestamp")
-    connection_stats: dict[str, Any] | None = Field(
-        None, description="Connection statistics"
-    )
+    connection_stats: dict[str, Any] | None = Field(None, description="Connection statistics")
 
 
 class PerformanceMetrics(BaseModel):
@@ -51,9 +47,7 @@ class ErrorResponse(BaseModel):
     """Standard error response."""
 
     error: str = Field(..., description="Error message")
-    details: dict[str, Any] | None = Field(
-        None, description="Additional error details"
-    )
+    details: dict[str, Any] | None = Field(None, description="Additional error details")
 
 
 class ConnectRequest(BaseModel):

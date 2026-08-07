@@ -9,6 +9,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
 class SessionManager:
     """Manage multiple concurrent RustDesk sessions"""
 
@@ -33,7 +34,7 @@ class SessionManager:
             "status": "connecting",
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
-            "connection_info": {}
+            "connection_info": {},
         }
 
         self.active_sessions[session_id] = session
@@ -130,8 +131,4 @@ class SessionManager:
         Returns:
             List of historical session dictionaries, most recent first
         """
-        return sorted(
-            self.session_history,
-            key=lambda x: x.get("created_at", ""),
-            reverse=True
-        )[:limit]
+        return sorted(self.session_history, key=lambda x: x.get("created_at", ""), reverse=True)[:limit]

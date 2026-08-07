@@ -36,8 +36,7 @@ class Config(BaseSettings):
     # MCP configuration
     mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")
     mcp_server_description: str = Field(
-        "FastMCP 2.10 server for RustDesk remote desktop management",
-        env="MCP_SERVER_DESCRIPTION"
+        "FastMCP 2.10 server for RustDesk remote desktop management", env="MCP_SERVER_DESCRIPTION"
     )
 
     # Optional authentication
@@ -70,24 +69,27 @@ class Config(BaseSettings):
             default_paths = [
                 r"C:\Program Files\RustDesk\rustdesk.exe",
                 r"C:\Program Files (x86)\RustDesk\rustdesk.exe",
-                r"C:\Users\{}\AppData\Local\RustDesk\rustdesk.exe".format(os.environ.get('USERNAME', '')),
-                r"C:\Users\{}\AppData\Roaming\RustDesk\rustdesk.exe".format(os.environ.get('USERNAME', ''))
+                r"C:\Users\{}\AppData\Local\RustDesk\rustdesk.exe".format(os.environ.get("USERNAME", "")),
+                r"C:\Users\{}\AppData\Roaming\RustDesk\rustdesk.exe".format(os.environ.get("USERNAME", "")),
             ]
 
             for path_str in default_paths:
                 path = Path(path_str).expanduser().resolve()
                 if path.exists():
                     import logging
+
                     logging.getLogger(__name__).info(f"Auto-detected RustDesk at: {path}")
                     return path
 
             import logging
+
             logging.getLogger(__name__).warning("RustDesk executable not found in default locations")
             return None
 
         path = Path(v).expanduser().resolve()
         if not path.exists():
             import logging
+
             logging.getLogger(__name__).warning(f"RustDesk executable not found at: {path}")
         return path
 
@@ -107,6 +109,7 @@ class Config(BaseSettings):
                 path = Path(path_str)
                 if path.exists() and path.is_dir():
                     import logging
+
                     logging.getLogger(__name__).info(f"Auto-detected RustDesk config at: {path}")
                     return path
 
@@ -115,10 +118,12 @@ class Config(BaseSettings):
             try:
                 default_config.mkdir(parents=True, exist_ok=True)
                 import logging
+
                 logging.getLogger(__name__).info(f"Created default RustDesk config directory: {default_config}")
                 return default_config
             except Exception:
                 import logging
+
                 logging.getLogger(__name__).warning(f"Could not create default config directory: {default_config}")
                 return None
 
@@ -129,6 +134,7 @@ class Config(BaseSettings):
             except Exception:
                 # Don't fail if we can't create the directory
                 import logging
+
                 logging.getLogger(__name__).warning(f"Could not create RustDesk config directory: {path}")
         return path
 

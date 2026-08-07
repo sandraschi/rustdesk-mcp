@@ -106,9 +106,7 @@ async def connect_to_peer(
 
         if request.save_password:
             # Save the password in the config
-            await service.update_config(
-                {"saved_peers": {request.peer_id: {"password": request.password}}}
-            )
+            await service.update_config({"saved_peers": {request.peer_id: {"password": request.password}}})
 
         return {
             "success": True,
@@ -220,9 +218,7 @@ async def launch_app(request: models.FleetLaunchRequest) -> models.FleetLaunchRe
     """Launch another MCP app via its start.ps1 script."""
     path = Path(request.repo_path)
     if not path.exists():
-        raise HTTPException(
-            status_code=404, detail=f"Path {request.repo_path} does not exist"
-        )
+        raise HTTPException(status_code=404, detail=f"Path {request.repo_path} does not exist")
 
     # Security check: Ensure path is within D:/Dev/repos
     try:
@@ -230,9 +226,7 @@ async def launch_app(request: models.FleetLaunchRequest) -> models.FleetLaunchRe
         target_path = path.resolve()
         target_path.relative_to(allowed_base)
     except ValueError:
-        raise HTTPException(
-            status_code=403, detail="Access denied: Path outside allowed directory"
-        )
+        raise HTTPException(status_code=403, detail="Access denied: Path outside allowed directory")
 
     start_script = path / "web_sota" / "start.ps1"
     if not start_script.exists():
@@ -240,9 +234,7 @@ async def launch_app(request: models.FleetLaunchRequest) -> models.FleetLaunchRe
         if not start_script.exists():
             start_script = path / "start.ps1"
             if not start_script.exists():
-                raise HTTPException(
-                    status_code=400, detail="No valid SOTA entry point found"
-                )
+                raise HTTPException(status_code=400, detail="No valid SOTA entry point found")
 
     try:
         subprocess.Popen(
@@ -256,9 +248,7 @@ async def launch_app(request: models.FleetLaunchRequest) -> models.FleetLaunchRe
             cwd=str(path),
             creationflags=subprocess.CREATE_NEW_CONSOLE,
         )
-        return models.FleetLaunchResponse(
-            success=True, message=f"Launched {path.name} successfully"
-        )
+        return models.FleetLaunchResponse(success=True, message=f"Launched {path.name} successfully")
     except Exception as e:
         logger.error(f"Failed to launch {path.name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))

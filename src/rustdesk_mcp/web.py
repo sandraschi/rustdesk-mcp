@@ -15,6 +15,7 @@ async def check_fork_api() -> dict:
     """Probe the rustdesk++ fork API server."""
     try:
         import aiohttp
+
         async with aiohttp.ClientSession() as session:
             async with session.get("http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)) as r:
                 if r.status == 200:
@@ -27,9 +28,7 @@ async def check_fork_api() -> dict:
 async def check_port(port: int) -> dict:
     """Check if a TCP port is open (hbbs/hbbr)."""
     try:
-        _reader, writer = await asyncio.wait_for(
-            asyncio.open_connection("127.0.0.1", port), timeout=2
-        )
+        _reader, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", port), timeout=2)
         writer.close()
         await writer.wait_closed()
         return {"running": True}
@@ -90,33 +89,52 @@ def setup_webapp(app: FastAPI, mcp_app=None):
     @app.get("/api/llm/discover", dependencies=[Depends(authenticate)])
     async def discover_llm():
         import aiohttp
+
         providers = {}
         try:
             async with aiohttp.ClientSession() as session:
                 try:
-                    async with session.get("http://127.0.0.1:11434/api/tags", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                    async with session.get(
+                        "http://127.0.0.1:11434/api/tags", timeout=aiohttp.ClientTimeout(total=2)
+                    ) as r:
                         if r.status == 200:
                             data = await r.json()
-                            providers["ollama"] = {"status": "available", "models": [m.get("name", "") for m in data.get("models", [])][:5]}
+                            providers["ollama"] = {
+                                "status": "available",
+                                "models": [m.get("name", "") for m in data.get("models", [])][:5],
+                            }
                 except Exception:
                     providers["ollama"] = {"status": "unreachable"}
                 try:
-                    async with session.get("http://127.0.0.1:1234/v1/models", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                    async with session.get(
+                        "http://127.0.0.1:1234/v1/models", timeout=aiohttp.ClientTimeout(total=2)
+                    ) as r:
                         if r.status == 200:
                             providers["lmstudio"] = {"status": "available"}
                 except Exception:
                     providers["lmstudio"] = {"status": "unreachable"}
         except Exception:
             providers["error"] = "discovery failed"
-        return {"providers": providers, "provider": "ollama" if providers.get("ollama", {}).get("status") == "available" else None}
+        return {
+            "providers": providers,
+            "provider": "ollama" if providers.get("ollama", {}).get("status") == "available" else None,
+        }
 
     @app.get("/api/status/fork")
     async def fork_status():
         import aiohttp
-        result = {"fork_api": {"status": "unknown"}, "hbbs": {"status": "unknown"}, "hbbr": {"status": "unknown"}, "fork_binary": None}
+
+        result = {
+            "fork_api": {"status": "unknown"},
+            "hbbs": {"status": "unknown"},
+            "hbbr": {"status": "unknown"},
+            "fork_binary": None,
+        }
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.get("http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)) as r:
+                async with session.get(
+                    "http://127.0.0.1:10806/api/v1/health", timeout=aiohttp.ClientTimeout(total=2)
+                ) as r:
                     if r.status == 200:
                         data = await r.json()
                         result["fork_api"] = {"status": "available", **data}
@@ -148,6 +166,7 @@ def setup_webapp(app: FastAPI, mcp_app=None):
 
     # Static files — catch-all SPA handler (AFTER all API routes)
     if static_dir.exists():
+
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_frontend(full_path: str):
             file_path = static_dir / full_path

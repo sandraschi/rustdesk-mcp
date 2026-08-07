@@ -1,15 +1,16 @@
 """Tests for RustDeskTools."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from rustdesk_mcp.tools import (
-    RustDeskTools,
     ConnectionRequest,
     FileTransferRequest,
-    ScreenshotRequest,
+    MonitoringRequest,
     RecordingRequest,
-    MonitoringRequest
+    RustDeskTools,
+    ScreenshotRequest,
 )
 
 
@@ -27,7 +28,9 @@ class TestRustDeskTools:
         service.start_screen_recording = AsyncMock(return_value={"success": True, "recording_id": "test-recording"})
         service.stop_screen_recording = AsyncMock(return_value={"success": True})
         service.monitor_resource_usage = AsyncMock(return_value={"success": True, "summary": {"cpu": {"avg": 50.0}}})
-        service.get_connection_quality = AsyncMock(return_value={"success": True, "connection_quality": {"latency_ms": 10}})
+        service.get_connection_quality = AsyncMock(
+            return_value={"success": True, "connection_quality": {"latency_ms": 10}}
+        )
         service.list_remote_files = AsyncMock(return_value={"success": True, "files": []})
         service.session_manager = MagicMock()
         service.session_manager.update_session_status = AsyncMock()
@@ -112,10 +115,7 @@ class TestRustDeskTools:
     async def test_transfer_file_success(self, tools, mock_service):
         """Test successful file transfer."""
         request = FileTransferRequest(
-            local_path="/local/test.txt",
-            remote_path="/remote/test.txt",
-            direction="upload",
-            session_id="session-123"
+            local_path="/local/test.txt", remote_path="/remote/test.txt", direction="upload", session_id="session-123"
         )
 
         result = await tools.transfer_file(request)
@@ -125,9 +125,7 @@ class TestRustDeskTools:
         assert result["local_path"] == "/local/test.txt"
         assert result["remote_path"] == "/remote/test.txt"
         mock_service.transfer_file.assert_called_once_with(
-            local_path="/local/test.txt",
-            remote_path="/remote/test.txt",
-            direction="upload"
+            local_path="/local/test.txt", remote_path="/remote/test.txt", direction="upload"
         )
         mock_service.session_manager.update_session_status.assert_called_once()
 
@@ -137,9 +135,7 @@ class TestRustDeskTools:
         mock_service.transfer_file.return_value = {"success": False, "error": "Transfer failed"}
 
         request = FileTransferRequest(
-            local_path="/local/test.txt",
-            remote_path="/remote/test.txt",
-            direction="download"
+            local_path="/local/test.txt", remote_path="/remote/test.txt", direction="download"
         )
 
         result = await tools.transfer_file(request)
@@ -218,20 +214,13 @@ class TestRustDeskTools:
     @pytest.mark.asyncio
     async def test_monitor_resources_success(self, tools, mock_service):
         """Test successful resource monitoring."""
-        request = MonitoringRequest(
-            duration_seconds=30,
-            interval=5.0,
-            session_id="session-123"
-        )
+        request = MonitoringRequest(duration_seconds=30, interval=5.0, session_id="session-123")
 
         result = await tools.monitor_resources(request)
 
         assert result["success"] is True
         assert result["summary"]["cpu"]["avg"] == 50.0
-        mock_service.monitor_resource_usage.assert_called_once_with(
-            duration_seconds=30,
-            interval=5.0
-        )
+        mock_service.monitor_resource_usage.assert_called_once_with(duration_seconds=30, interval=5.0)
         mock_service.session_manager.update_session_status.assert_called_once()
 
     @pytest.mark.asyncio
@@ -273,7 +262,7 @@ class TestRustDeskTools:
             "success": True,
             "files": [{"name": "test.txt", "size": 1024}],
             "directory": "/remote",
-            "count": 1
+            "count": 1,
         }
 
         result = await tools.list_remote_files("/remote", "session-123")

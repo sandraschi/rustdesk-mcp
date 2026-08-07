@@ -17,6 +17,7 @@ from typing import Annotated, Any
 import psutil
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastmcp import FastMCP
 from pydantic import Field
@@ -35,10 +36,12 @@ _START_TIME = time.time()
 _READ_ONLY = {"readonly": True}
 _MUTATING = {}
 
+
 def _error_response(error: str, error_type: str = "general", **kwargs) -> dict[str, Any]:
     """Auto-logging error response — traceback logged before returning to caller."""
     logger.exception("Tool error: %s [%s]", error, error_type)
     return {"success": False, "error": error, "error_type": error_type, **kwargs}
+
 
 # Store the service instances
 rustdesk_service: RustDeskService | None = None
@@ -49,6 +52,28 @@ wol_service: WolService | None = None
 web_app = FastAPI(title="Remote Desktop Web Bridge")
 app = web_app  # Alias for exception handlers and __init__ export
 
+# Fleet CORS standard — webapp REST routes must allow the browser origin
+# (dev Vite 10804 + Tauri WebView). Without this the frontend fetch fails
+# with "Failed to fetch" while curl/PowerShell still works.
+web_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:10804",
+        "http://127.0.0.1:10804",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ],
+    allow_origin_regex=(
+        r"https?://(?:[a-zA-Z0-9-]+\.ts\.net|.*?\.tail-[a-f0-9]+\.ts\.net|"
+        r"tauri\.localhost|localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$|^tauri://localhost$"
+    ),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @web_app.middleware("http")
 async def fleet_public_health(request: Request, call_next):
@@ -57,8 +82,7 @@ async def fleet_public_health(request: Request, call_next):
         return JSONResponse(
             {
                 "status": "ok",
-                "rustdesk_available": rustdesk_service is not None
-                and not rustdesk_service.mock_mode,
+                "rustdesk_available": rustdesk_service is not None and not rustdesk_service.mock_mode,
                 "mock_mode": rustdesk_service.mock_mode if rustdesk_service else True,
                 "version": "0.1.0",
             }
@@ -80,16 +104,12 @@ async def lifespan(app: FastAPI):
         logger.info(f"Configuration loaded: {config.host}:{config.port}")
 
         # Initialize services
-        rustdesk_service = RustDeskService(
-            config.rustdesk_path, config.rustdesk_config_dir
-        )
+        rustdesk_service = RustDeskService(config.rustdesk_path, config.rustdesk_config_dir)
         rustdesk_tools = RustDeskTools(rustdesk_service)
         wol_service = WolService()
 
         if rustdesk_service.mock_mode:
-            logger.warning(
-                "RustDesk service initialized in mock mode - install RustDesk for full functionality"
-            )
+            logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
         else:
             logger.info("RustDesk service initialized successfully")
 
@@ -122,15 +142,11 @@ async def init_for_stdio() -> None:
     """Initialize service and register tools for STDIO mode (called before run_server)."""
     global rustdesk_service, rustdesk_tools, wol_service
     config = get_config()
-    rustdesk_service = RustDeskService(
-        config.rustdesk_path, config.rustdesk_config_dir
-    )
+    rustdesk_service = RustDeskService(config.rustdesk_path, config.rustdesk_config_dir)
     rustdesk_tools = RustDeskTools(rustdesk_service)
     wol_service = WolService()
     if rustdesk_service.mock_mode:
-        logger.warning(
-            "RustDesk service initialized in mock mode - install RustDesk for full functionality"
-        )
+        logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
     await register_tools()
 
 
@@ -141,6 +157,7 @@ async def register_tools():
 
     # Register Prefab UI cards
     from .tools.prefab_cards import register_prefab_cards
+
     register_prefab_cards(mcp, rustdesk_service)
 
     # Register status tools
@@ -185,12 +202,8 @@ async def register_tools():
         return {
             "installed": rustdesk_service.is_installed(),
             "running": rustdesk_service.is_running(),
-            "executable_path": str(rustdesk_service.rustdesk_path)
-            if rustdesk_service.rustdesk_path
-            else None,
-            "config_dir": str(rustdesk_service.config_dir)
-            if rustdesk_service.config_dir
-            else None,
+            "executable_path": str(rustdesk_service.rustdesk_path) if rustdesk_service.rustdesk_path else None,
+            "config_dir": str(rustdesk_service.config_dir) if rustdesk_service.config_dir else None,
             "mock_mode": rustdesk_service.mock_mode,
         }
 
@@ -227,8 +240,7 @@ async def register_tools():
 
         # If we have real sessions from session manager, return those
         if base_result.get("sessions") and any(
-            s.get("connection_type") == "tracked_session"
-            for s in base_result["sessions"]
+            s.get("connection_type") == "tracked_session" for s in base_result["sessions"]
         ):
             return base_result
 
@@ -271,33 +283,20 @@ async def register_tools():
                     if log_dir.exists():
                         current_log = log_dir / "RustDesk_rCURRENT.log"
                         if current_log.exists():
-                            with open(
-                                current_log, encoding="utf-8", errors="ignore"
-                            ) as f:
+                            with open(current_log, encoding="utf-8", errors="ignore") as f:
                                 lines = f.readlines()[-5:]  # Last 5 lines
 
                             for line in reversed(lines):
-                                if "conn_id:" in line and (
-                                    "clipboard" in line or "established" in line
-                                ):
+                                if "conn_id:" in line and ("clipboard" in line or "established" in line):
                                     try:
                                         parts = line.split()
                                         timestamp = f"{parts[0]} {parts[1]}"
-                                        conn_id_part = [
-                                            p for p in parts if "conn_id:" in p
-                                        ]
+                                        conn_id_part = [p for p in parts if "conn_id:" in p]
                                         if conn_id_part:
-                                            conn_id = (
-                                                conn_id_part[0]
-                                                .split("conn_id:")[1]
-                                                .rstrip(",")
-                                            )
+                                            conn_id = conn_id_part[0].split("conn_id:")[1].rstrip(",")
 
                                             # Don't duplicate network sessions
-                                            if not any(
-                                                s.get("connection_id") == conn_id
-                                                for s in sessions
-                                            ):
+                                            if not any(s.get("connection_id") == conn_id for s in sessions):
                                                 sessions.append(
                                                     {
                                                         "session_id": f"conn_{conn_id}",
@@ -427,9 +426,7 @@ async def register_tools():
         """
         from .tools_module import ConnectionRequest
 
-        request = ConnectionRequest(
-            peer_id=peer_id, password=password, session_id=session_id
-        )
+        request = ConnectionRequest(peer_id=peer_id, password=password, session_id=session_id)
         return await rustdesk_tools.connect_to_peer(request)
 
     @mcp.tool(annotations=_MUTATING)
@@ -452,9 +449,15 @@ async def register_tools():
     async def transfer_file(
         local_path: Annotated[str, Field(description="Path to the local file for transfer.")],
         remote_path: Annotated[str, Field(description="Destination path on the remote machine.")],
-        direction: Annotated[str, Field(description="'upload' (local to remote) or 'download' (remote to local).")] = "upload",
-        session_id: Annotated[str | None, Field(description="Session identifier for targeting specific connection.")] = None,
-        peer_id: Annotated[str | None, Field(description="RustDesk peer ID (9-10 digit). Required for fork CLI transfer.")] = None,
+        direction: Annotated[
+            str, Field(description="'upload' (local to remote) or 'download' (remote to local).")
+        ] = "upload",
+        session_id: Annotated[
+            str | None, Field(description="Session identifier for targeting specific connection.")
+        ] = None,
+        peer_id: Annotated[
+            str | None, Field(description="RustDesk peer ID (9-10 digit). Required for fork CLI transfer.")
+        ] = None,
     ) -> dict[str, Any]:
         """Transfer files between local and remote RustDesk-connected machines.
 
@@ -474,8 +477,11 @@ async def register_tools():
         from .tools_module import FileTransferRequest
 
         request = FileTransferRequest(
-            local_path=local_path, remote_path=remote_path,
-            direction=direction, session_id=session_id, peer_id=peer_id,
+            local_path=local_path,
+            remote_path=remote_path,
+            direction=direction,
+            session_id=session_id,
+            peer_id=peer_id,
         )
         return await rustdesk_tools.transfer_file(request)
 
@@ -497,10 +503,169 @@ async def register_tools():
         """
         return await rustdesk_tools.list_remote_files(remote_path, session_id)
 
+    @mcp.tool(annotations=_READ_ONLY)
+    async def compare_folders(
+        local_dir: Annotated[str, Field(description="Local directory path to compare.")],
+        remote_dir: Annotated[str, Field(description="Remote directory path to compare.")],
+        session_id: Annotated[str | None, Field(description="Optional session identifier.")] = None,
+    ) -> dict[str, Any]:
+        """Compare a local directory against a remote directory.
+
+        Lists files on both sides and reports differences: files only in local,
+        only in remote, size mismatches, and newer/older files by modification time.
+
+        ## Return Format
+        {"success": bool, "local_dir": str, "remote_dir": str, "only_local": [str], "only_remote": [str],
+         "size_mismatch": [{"file": str, "local_size": int, "remote_size": int}],
+         "newer_local": [str], "newer_remote": [str], "identical": [str]}
+
+        ## Examples
+        compare_folders(local_dir="/local/configs", remote_dir="/etc/configs")
+        compare_folders(local_dir="./data", remote_dir="/home/user/data", session_id="sess_123")
+        """
+        from pathlib import Path as _Path
+
+        lp = _Path(local_dir).expanduser().resolve()
+        if not lp.is_dir():
+            return {"success": False, "error": f"Local directory not found: {lp}"}
+
+        local_files: dict[str, dict] = {}
+        try:
+            for entry in lp.iterdir():
+                if entry.is_file():
+                    s = entry.stat()
+                    local_files[entry.name] = {"size": s.st_size, "mtime": int(s.st_mtime)}
+        except Exception as e:
+            return {"success": False, "error": f"Failed to read local directory: {e}"}
+
+        remote_result = await rustdesk_tools.list_remote_files(remote_dir, session_id)
+        if not remote_result.get("success"):
+            return {
+                "success": False,
+                "error": f"Failed to list remote directory: {remote_result.get('error', 'unknown')}",
+                "remote_result": remote_result,
+            }
+
+        remote_data = remote_result.get("data", {})
+        remote_items = remote_data.get("files", remote_data.get("items", remote_data.get("entries", [])))
+        remote_files: dict[str, dict] = {}
+        for f in remote_items:
+            if isinstance(f, dict):
+                name = f.get("name", f.get("filename", ""))
+                if name:
+                    remote_files[name] = {"size": f.get("size", 0), "mtime": f.get("mtime", f.get("modified", 0))}
+
+        only_local = sorted(set(local_files) - set(remote_files))
+        only_remote = sorted(set(remote_files) - set(local_files))
+        common = set(local_files) & set(remote_files)
+
+        size_mismatch = []
+        newer_local = []
+        newer_remote = []
+        identical = []
+        for f in sorted(common):
+            lf = local_files[f]
+            rf = remote_files[f]
+            if lf["size"] != rf["size"]:
+                size_mismatch.append({"file": f, "local_size": lf["size"], "remote_size": rf["size"]})
+            elif lf["mtime"] > rf["mtime"]:
+                newer_local.append(f)
+            elif rf["mtime"] > lf["mtime"]:
+                newer_remote.append(f)
+            else:
+                identical.append(f)
+
+        return {
+            "success": True,
+            "local_dir": str(lp),
+            "remote_dir": remote_dir,
+            "only_local": only_local,
+            "only_remote": only_remote,
+            "size_mismatch": size_mismatch,
+            "newer_local": newer_local,
+            "newer_remote": newer_remote,
+            "identical": identical,
+            "local_count": len(local_files),
+            "remote_count": len(remote_files),
+        }
+
+    @mcp.tool(annotations=_MUTATING)
+    async def sync_folder(
+        local_dir: Annotated[str, Field(description="Local directory to sync.")],
+        remote_dir: Annotated[str, Field(description="Remote directory to sync.")],
+        direction: Annotated[
+            str, Field(description="'to_remote' (push local changes) or 'to_local' (pull remote changes).")
+        ] = "to_remote",
+        dry_run: Annotated[bool, Field(description="If True, only report what would be transferred.")] = True,
+        session_id: Annotated[str | None, Field(description="Optional session identifier.")] = None,
+        peer_id: Annotated[str | None, Field(description="RustDesk peer ID for transfer.")] = None,
+    ) -> dict[str, Any]:
+        """Synchronize a local directory with a remote directory.
+
+        Runs a comparison first, then transfers files that are missing or newer
+        in the source directory to the destination. Supports dry-run to preview.
+
+        ## Return Format
+        {"success": bool, "direction": str, "dry_run": bool, "transferred": [str], "skipped": [str], "errors": [str]}
+
+        ## Examples
+        sync_folder(local_dir="./configs", remote_dir="/etc/configs", dry_run=True)
+        sync_folder(local_dir="./data", remote_dir="/home/user/data", direction="to_remote", dry_run=False)
+        """
+        compare = await compare_folders(local_dir, remote_dir, session_id)
+        if not compare.get("success"):
+            return {"success": False, "error": compare.get("error", "compare failed")}
+
+        if direction == "to_remote":
+            to_transfer = compare.get("only_local", []) + compare.get("newer_local", [])
+        else:
+            to_transfer = compare.get("only_remote", []) + compare.get("newer_remote", [])
+
+        from pathlib import Path as _Path
+
+        transferred = []
+        skipped = []
+        errors = []
+        for fname in to_transfer:
+            local_path = str(_Path(local_dir).expanduser().resolve() / fname)
+            remote_path = f"{remote_dir.rstrip('/')}/{fname}"
+            if dry_run:
+                skipped.append(fname)
+                continue
+            try:
+                from .tools_module import FileTransferRequest as _FTR
+
+                req = _FTR(
+                    local_path=local_path,
+                    remote_path=remote_path,
+                    direction="upload" if direction == "to_remote" else "download",
+                    session_id=session_id,
+                    peer_id=peer_id,
+                )
+                result = await rustdesk_tools.transfer_file(req)
+                if result.get("success"):
+                    transferred.append(fname)
+                else:
+                    errors.append(f"{fname}: {result.get('error', 'transfer failed')}")
+            except Exception as e:
+                errors.append(f"{fname}: {e}")
+
+        return {
+            "success": len(errors) == 0,
+            "direction": direction,
+            "dry_run": dry_run,
+            "transferred": transferred,
+            "skipped": skipped,
+            "errors": errors,
+            "total": len(to_transfer),
+        }
+
     # Screen capture tools
     @mcp.tool(annotations=_MUTATING)
     async def take_screenshot(
-        save_path: Annotated[str | None, Field(description="Path to save the screenshot. Auto-named if omitted.")] = None,
+        save_path: Annotated[
+            str | None, Field(description="Path to save the screenshot. Auto-named if omitted.")
+        ] = None,
         session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
     ) -> dict[str, Any]:
         """Capture a screenshot of the remote desktop session.
@@ -573,9 +738,7 @@ async def register_tools():
         """
         from .tools_module import MonitoringRequest
 
-        request = MonitoringRequest(
-            duration_seconds=duration_seconds, interval=interval, session_id=session_id
-        )
+        request = MonitoringRequest(duration_seconds=duration_seconds, interval=interval, session_id=session_id)
         return await rustdesk_tools.monitor_resources(request)
 
     @mcp.tool(annotations=_READ_ONLY)
@@ -639,10 +802,9 @@ async def register_tools():
 # Exception handlers and route registrations
 app.include_router(api_v1_router)
 
+
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -671,8 +833,7 @@ async def health_check() -> dict[str, Any]:
         "version": "0.1.0",
         "uptime_seconds": int(time.time() - _START_TIME),
         "tool_count": tool_count,
-        "rustdesk_available": rustdesk_service is not None
-        and not rustdesk_service.mock_mode,
+        "rustdesk_available": rustdesk_service is not None and not rustdesk_service.mock_mode,
         "mock_mode": rustdesk_service.mock_mode if rustdesk_service else True,
     }
 

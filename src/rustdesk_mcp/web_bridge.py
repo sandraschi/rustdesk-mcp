@@ -107,6 +107,7 @@ async def control_action(action: str, body: dict | None = None):
     try:
         if action == "remote_click":
             from rustdesk_mcp.services.advanced_control import AdvancedControlService
+
             ctrl = AdvancedControlService()
             result = await ctrl.remote_click(
                 x=body.get("x", 100) if body else 100,
@@ -116,6 +117,7 @@ async def control_action(action: str, body: dict | None = None):
         elif action == "remote_type":
             text = body.get("text", "") if body else ""
             from rustdesk_mcp.services.advanced_control import AdvancedControlService
+
             ctrl = AdvancedControlService()
             result = await ctrl.remote_type(text)
             return {"success": True, "action": action, "result": result}

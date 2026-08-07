@@ -60,15 +60,11 @@ class RustDeskService:
         self.api_url = api_url or os.getenv("RUSTDESK_API_URL")
         self.api_key = api_key or os.getenv("RUSTDESK_API_KEY")
         self.api_username = api_username or os.getenv("RUSTDESK_API_USERNAME", "admin")
-        self.api_password = api_password or os.getenv(
-            "RUSTDESK_API_PASSWORD", "vAw7I4V9"
-        )
+        self.api_password = api_password or os.getenv("RUSTDESK_API_PASSWORD", "vAw7I4V9")
 
         self.session_manager = SessionManager()
         self.active_recording: dict[str, Any] | None = None
-        self.mock_mode = (
-            rustdesk_path is None and api_url is None and id_server_host == "127.0.0.1"
-        )
+        self.mock_mode = rustdesk_path is None and api_url is None and id_server_host == "127.0.0.1"
         self.http_session: aiohttp.ClientSession | None = None
         self.jwt_token: str | None = None
         self.token_expires_at: datetime | None = None
@@ -90,9 +86,7 @@ class RustDeskService:
         """Ensure we have an active HTTP session."""
         if self.http_session is None or self.http_session.closed:
             # Start with basic headers, auth will be added per request
-            self.http_session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=30)
-            )
+            self.http_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
 
     async def _api_request(
         self,
@@ -134,9 +128,7 @@ class RustDeskService:
                         "status": response.status,
                     }
             elif method.upper() == "POST":
-                async with self.http_session.post(
-                    url, json=data, headers=headers
-                ) as response:
+                async with self.http_session.post(url, json=data, headers=headers) as response:
                     if response.status == 404:
                         return {
                             "success": False,
@@ -199,15 +191,11 @@ class RustDeskService:
                         logger.info("Successfully logged in to RustDesk API")
                         return True
                     else:
-                        logger.error(
-                            f"Login failed: No access_token in response: {result}"
-                        )
+                        logger.error(f"Login failed: No access_token in response: {result}")
                         return False
                 else:
                     error_text = await response.text()
-                    logger.error(
-                        f"Login failed with status {response.status}: {error_text}"
-                    )
+                    logger.error(f"Login failed with status {response.status}: {error_text}")
                     return False
         except Exception as e:
             logger.exception(f"Login request failed: {e}")
@@ -232,9 +220,7 @@ class RustDeskService:
         if self.http_session and not self.http_session.closed:
             await self.http_session.close()
 
-    async def run_command(
-        self, args: list[str | Path], timeout: int = 30
-    ) -> dict[str, Any]:
+    async def run_command(self, args: list[str | Path], timeout: int = 30) -> dict[str, Any]:
         """Run a RustDesk command with error handling.
 
         Args:
@@ -246,9 +232,7 @@ class RustDeskService:
         """
         if self.mock_mode:
             # Mock mode - simulate command responses
-            logger.debug(
-                "Mock mode: Running command: %s", " ".join(str(arg) for arg in args)
-            )
+            logger.debug("Mock mode: Running command: %s", " ".join(str(arg) for arg in args))
             await asyncio.sleep(0.1)  # Simulate command delay
 
             # Return mock responses based on command
@@ -281,9 +265,7 @@ class RustDeskService:
             )
 
             try:
-                stdout, stderr = await asyncio.wait_for(
-                    proc.communicate(), timeout=timeout
-                )
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
             except TimeoutError:
                 proc.kill()
                 await proc.wait()
@@ -594,7 +576,9 @@ class RustDeskService:
         except Exception as e:
             return {"success": False, "error": f"Failed to read address book: {e!s}"}
 
-    async def add_address_book_entry(self, peer_id: str, alias: str = "", note: str = "", tags: list[str] | None = None) -> dict[str, Any]:
+    async def add_address_book_entry(
+        self, peer_id: str, alias: str = "", note: str = "", tags: list[str] | None = None
+    ) -> dict[str, Any]:
         """Add a peer to the address book.
 
         Args:
@@ -615,20 +599,29 @@ class RustDeskService:
             data = {}
             if addr_file.exists():
                 import tomllib
+
                 with open(addr_file, "rb") as f:
                     data = tomllib.load(f)
             peers = data.setdefault("peers", {})
             if peer_id in peers:
                 return {"success": False, "error": f"Peer {peer_id} already exists"}
-            peers[peer_id] = {"alias": alias, "note": note, "tags": tags or [], "added": str(__import__("datetime").datetime.now())}
+            peers[peer_id] = {
+                "alias": alias,
+                "note": note,
+                "tags": tags or [],
+                "added": str(__import__("datetime").datetime.now()),
+            }
             import tomli_w
+
             with open(addr_file, "wb") as f:
                 tomli_w.dump(data, f)
             return {"success": True, "message": f"Added peer {peer_id}"}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def update_address_book_entry(self, peer_id: str, alias: str | None = None, note: str | None = None, tags: list[str] | None = None) -> dict[str, Any]:
+    async def update_address_book_entry(
+        self, peer_id: str, alias: str | None = None, note: str | None = None, tags: list[str] | None = None
+    ) -> dict[str, Any]:
         """Update a peer in the address book.
 
         Args:
@@ -647,6 +640,7 @@ class RustDeskService:
         addr_file = self.config_dir / "addrbook.toml"
         try:
             import tomllib
+
             if not addr_file.exists():
                 return {"success": False, "error": "Address book not found"}
             with open(addr_file, "rb") as f:
@@ -665,6 +659,7 @@ class RustDeskService:
             else:
                 peers[peer_id] = {"alias": alias or str(entry), "note": note or "", "tags": tags or []}
             import tomli_w
+
             with open(addr_file, "wb") as f:
                 tomli_w.dump(data, f)
             return {"success": True, "message": f"Updated peer {peer_id}"}
@@ -687,6 +682,7 @@ class RustDeskService:
         addr_file = self.config_dir / "addrbook.toml"
         try:
             import tomllib
+
             if not addr_file.exists():
                 return {"success": False, "error": "Address book not found"}
             with open(addr_file, "rb") as f:
@@ -696,6 +692,7 @@ class RustDeskService:
                 return {"success": False, "error": f"Peer {peer_id} not found"}
             del peers[peer_id]
             import tomli_w
+
             with open(addr_file, "wb") as f:
                 tomli_w.dump(data, f)
             return {"success": True, "message": f"Removed peer {peer_id}"}
@@ -800,9 +797,7 @@ class RustDeskService:
 
         try:
             # Connect using API
-            result = await self._api_request(
-                "POST", "/api/connect", {"peer_id": peer_id, "password": password}
-            )
+            result = await self._api_request("POST", "/api/connect", {"peer_id": peer_id, "password": password})
 
             if result.get("success", False):
                 # Update session status on success
@@ -833,9 +828,7 @@ class RustDeskService:
 
         except Exception as e:
             # Update session status on exception
-            await self.session_manager.update_session_status(
-                session["id"], "error", error=str(e)
-            )
+            await self.session_manager.update_session_status(session["id"], "error", error=str(e))
             logger.exception(f"Failed to connect to peer {peer_id}")
             return {"success": False, "error": str(e), "session_id": session["id"]}
 
@@ -860,9 +853,7 @@ class RustDeskService:
                     result["disconnected_sessions"].append(session_id)
                 else:
                     result["success"] = False
-                    result["error"] = cmd_result.get(
-                        "error", "Failed to disconnect session"
-                    )
+                    result["error"] = cmd_result.get("error", "Failed to disconnect session")
             else:
                 # Disconnect all active sessions
                 active_sessions = await self.session_manager.list_active_sessions()
@@ -939,7 +930,10 @@ class RustDeskService:
         }
 
     async def transfer_file(
-        self, local_path: str, remote_path: str, direction: str = "upload",
+        self,
+        local_path: str,
+        remote_path: str,
+        direction: str = "upload",
         peer_id: str | None = None,
     ) -> dict[str, Any]:
         """Transfer files to/from remote peer via RustDesk protocol.
@@ -964,9 +958,7 @@ class RustDeskService:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     "http://127.0.0.1:10806/api/v1/file/upload",
-                    json={"local_path": local_path,
-                          "remote_path": remote_path,
-                          "direction": direction},
+                    json={"local_path": local_path, "remote_path": remote_path, "direction": direction},
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as r:
                     if r.status == 200:
@@ -1002,7 +994,7 @@ class RustDeskService:
             except Exception:
                 pass
 
-        # Try RustDesk CLI --file-transfer argument
+                # Try RustDesk CLI --file-transfer argument
                 result = await self.run_command(args, timeout=120)
                 if result.get("success", False):
                     return {
@@ -1015,9 +1007,7 @@ class RustDeskService:
                             "method": "cli",
                         },
                     }
-                logger.debug(
-                    "CLI file transfer failed: %s", result.get("error", "unknown")
-                )
+                logger.debug("CLI file transfer failed: %s", result.get("error", "unknown"))
             except Exception as e:
                 logger.debug("CLI file transfer exception: %s", e)
 
@@ -1044,9 +1034,7 @@ class RustDeskService:
                             "api_response": api_result.get("data", {}),
                         },
                     }
-                logger.debug(
-                    "API file transfer failed: %s", api_result.get("error", "unknown")
-                )
+                logger.debug("API file transfer failed: %s", api_result.get("error", "unknown"))
             except Exception as e:
                 logger.debug("API file transfer exception: %s", e)
 
@@ -1076,9 +1064,7 @@ class RustDeskService:
         if self.api_url:
             try:
                 await self._ensure_authenticated()
-                api_result = await self._api_request(
-                    "GET", f"/api/peer/files?path={remote_path}"
-                )
+                api_result = await self._api_request("GET", f"/api/peer/files?path={remote_path}")
                 if api_result.get("success", False):
                     return {
                         "success": True,
@@ -1137,9 +1123,7 @@ class RustDeskService:
             ],
         }
 
-    async def start_screen_recording(
-        self, save_path: str | None = None
-    ) -> dict[str, Any]:
+    async def start_screen_recording(self, save_path: str | None = None) -> dict[str, Any]:
         """Start recording the remote desktop session."""
         if self.mock_mode:
             return {
@@ -1214,9 +1198,7 @@ class RustDeskService:
                 ],
             }
 
-    async def monitor_resource_usage(
-        self, duration_seconds: int = 60, interval: float = 5.0
-    ) -> dict[str, Any]:
+    async def monitor_resource_usage(self, duration_seconds: int = 60, interval: float = 5.0) -> dict[str, Any]:
         """Monitor system resource usage over time.
 
         Args:
@@ -1234,9 +1216,7 @@ class RustDeskService:
             duration_seconds = max(1, min(duration_seconds, 3600))  # Cap at 1 hour
             interval = max(0.5, min(interval, 60.0))  # Between 0.5s and 60s
 
-            logger.info(
-                f"Starting resource monitoring for {duration_seconds} seconds with {interval}s interval"
-            )
+            logger.info(f"Starting resource monitoring for {duration_seconds} seconds with {interval}s interval")
 
             while time.time() - start_time < duration_seconds:
                 # Get current timestamp

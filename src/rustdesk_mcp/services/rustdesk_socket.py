@@ -14,14 +14,20 @@ import time
 
 logger = logging.getLogger(__name__)
 
+
 class RustDeskSocketClient:
     """Minimal client for communicating with RustDesk servers via TCP sockets."""
 
-    DEFAULT_ID_PORT = 21116      # hbbs (ID server)
-    DEFAULT_RELAY_PORT = 21117   # hbbr (Relay server)
+    DEFAULT_ID_PORT = 21116  # hbbs (ID server)
+    DEFAULT_RELAY_PORT = 21117  # hbbr (Relay server)
 
-    def __init__(self, id_server_host: str = "127.0.0.1", id_server_port: int = DEFAULT_ID_PORT,
-                 relay_server_host: str = "127.0.0.1", relay_server_port: int = DEFAULT_RELAY_PORT):
+    def __init__(
+        self,
+        id_server_host: str = "127.0.0.1",
+        id_server_port: int = DEFAULT_ID_PORT,
+        relay_server_host: str = "127.0.0.1",
+        relay_server_port: int = DEFAULT_RELAY_PORT,
+    ):
         """Initialize the socket client.
 
         Args:
@@ -61,13 +67,13 @@ class RustDeskSocketClient:
                     sock.connect((host, port))
 
                 # Send command
-                sock.send(command.encode('utf-8'))
+                sock.send(command.encode("utf-8"))
 
                 # Small delay for processing (from lejianwen)
                 time.sleep(0.1)
 
                 # Read response
-                response = sock.recv(1024).decode('utf-8')
+                response = sock.recv(1024).decode("utf-8")
 
                 sock.close()
                 return response.strip()

@@ -1,9 +1,5 @@
 """Tests for API routes."""
 
-import pytest
-from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, MagicMock, patch
-
 
 class TestAPIRoutes:
     """Test cases for API routes."""
@@ -19,7 +15,7 @@ class TestAPIRoutes:
         mock_rustdesk_service.get_status.return_value = {
             "is_running": True,
             "version": "1.2.0",
-            "config": {"test": "config"}
+            "config": {"test": "config"},
         }
 
         response = test_client.get("/api/v1/status")
@@ -44,14 +40,10 @@ class TestAPIRoutes:
         mock_rustdesk_tools.connect_to_peer.return_value = {
             "success": True,
             "session_id": "test-session",
-            "message": "Connected successfully"
+            "message": "Connected successfully",
         }
 
-        request_data = {
-            "peer_id": "123456789",
-            "password": "testpass",
-            "save_password": False
-        }
+        request_data = {"peer_id": "123456789", "password": "testpass", "save_password": False}
 
         response = test_client.post("/api/v1/connect", json=request_data)
 
@@ -65,7 +57,7 @@ class TestAPIRoutes:
         """Test peer connection with invalid data."""
         request_data = {
             "peer_id": "",  # Invalid empty peer_id
-            "password": "testpass"
+            "password": "testpass",
         }
 
         response = test_client.post("/api/v1/connect", json=request_data)
@@ -78,7 +70,7 @@ class TestAPIRoutes:
         mock_rustdesk_tools.disconnect_peer.return_value = {
             "success": True,
             "disconnected_sessions": ["session-123"],
-            "message": "Disconnected successfully"
+            "message": "Disconnected successfully",
         }
 
         response = test_client.post("/api/v1/disconnect")
@@ -94,14 +86,10 @@ class TestAPIRoutes:
             "success": True,
             "direction": "upload",
             "local_path": "/local/test.txt",
-            "remote_path": "/remote/test.txt"
+            "remote_path": "/remote/test.txt",
         }
 
-        request_data = {
-            "local_path": "/local/test.txt",
-            "remote_path": "/remote/test.txt",
-            "direction": "upload"
-        }
+        request_data = {"local_path": "/local/test.txt", "remote_path": "/remote/test.txt", "direction": "upload"}
 
         response = test_client.post("/api/v1/transfer", json=request_data)
 
@@ -116,12 +104,10 @@ class TestAPIRoutes:
             "success": True,
             "file_path": "/tmp/screenshot.png",
             "file_size": 1024000,
-            "created_at": "2025-01-01T12:00:00Z"
+            "created_at": "2025-01-01T12:00:00Z",
         }
 
-        request_data = {
-            "save_path": "/tmp/screenshot.png"
-        }
+        request_data = {"save_path": "/tmp/screenshot.png"}
 
         response = test_client.post("/api/v1/screenshot", json=request_data)
 
@@ -136,12 +122,10 @@ class TestAPIRoutes:
             "success": True,
             "recording_id": "test-recording",
             "file_path": "/tmp/recording.mp4",
-            "started_at": "2025-01-01T12:00:00Z"
+            "started_at": "2025-01-01T12:00:00Z",
         }
 
-        request_data = {
-            "save_path": "/tmp/recording.mp4"
-        }
+        request_data = {"save_path": "/tmp/recording.mp4"}
 
         response = test_client.post("/api/v1/recording/start", json=request_data)
 
@@ -157,7 +141,7 @@ class TestAPIRoutes:
             "recording_id": "test-recording",
             "duration_seconds": 30.5,
             "file_path": "/tmp/recording.mp4",
-            "file_size": 2048000
+            "file_size": 2048000,
         }
 
         response = test_client.post("/api/v1/recording/stop")
@@ -175,15 +159,12 @@ class TestAPIRoutes:
             "end_time": 1640995230.0,
             "summary": {
                 "cpu": {"avg": 45.2, "max": 67.8, "min": 12.3},
-                "memory": {"avg": 60.1, "max": 75.2, "min": 45.6}
+                "memory": {"avg": 60.1, "max": 75.2, "min": 45.6},
             },
-            "measurements": []
+            "measurements": [],
         }
 
-        request_data = {
-            "duration_seconds": 30,
-            "interval": 5.0
-        }
+        request_data = {"duration_seconds": 30, "interval": 5.0}
 
         response = test_client.post("/api/v1/monitor", json=request_data)
 
@@ -203,9 +184,9 @@ class TestAPIRoutes:
                 "packet_loss_percent": 0.1,
                 "frame_rate": 30,
                 "resolution": "1920x1080",
-                "color_depth": 32
+                "color_depth": 32,
             },
-            "measured_at": "2025-01-01T12:00:00Z"
+            "measured_at": "2025-01-01T12:00:00Z",
         }
 
         response = test_client.get("/api/v1/connection-quality")
@@ -229,10 +210,10 @@ class TestAPIRoutes:
                     "size": 1024,
                     "date": "Jan 1 12:00",
                     "name": "test.txt",
-                    "path": "/remote/test.txt"
+                    "path": "/remote/test.txt",
                 }
             ],
-            "count": 1
+            "count": 1,
         }
 
         response = test_client.get("/api/v1/files?remote_path=/remote")
@@ -252,9 +233,7 @@ class TestAPIRoutes:
     def test_invalid_json(self, test_client):
         """Test invalid JSON handling."""
         response = test_client.post(
-            "/api/v1/connect",
-            data="invalid json",
-            headers={"Content-Type": "application/json"}
+            "/api/v1/connect", data="invalid json", headers={"Content-Type": "application/json"}
         )
         assert response.status_code == 422
 
@@ -273,7 +252,8 @@ class TestAPIRoutes:
         """Test service unavailable scenarios."""
         # Mock service not initialized
         import rustdesk_mcp.server
-        original_service = getattr(rustdesk_mcp.server, 'rustdesk_service', None)
+
+        original_service = getattr(rustdesk_mcp.server, "rustdesk_service", None)
         rustdesk_mcp.server.rustdesk_service = None
 
         try:

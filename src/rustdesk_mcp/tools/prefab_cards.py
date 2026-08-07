@@ -1,6 +1,5 @@
 """Prefab UI cards for RustDesk MCP status and list tools."""
 
-
 from fastmcp import FastMCP
 from prefab_ui.app import PrefabApp
 from prefab_ui.components import (
@@ -50,17 +49,21 @@ def register_prefab_cards(mcp: FastMCP, service: RustDeskService) -> None:
             variant="default" if conns > 0 else "secondary",
         )
 
-        view = Div(children=[
-            Heading("RustDesk Status"),
-            Div(children=[
-                Row(label="Version", value=version),
-                Row(label="Service", value=service_status),
-                Row(label="Status", value=status_badge),
-                Row(label="Connections", value=conn_badge),
-                Row(label="Mock mode", value="Yes" if mock else "No"),
-                Row(label="Installed", value="Yes" if installed else "No"),
-            ]),
-        ])
+        view = Div(
+            children=[
+                Heading("RustDesk Status"),
+                Div(
+                    children=[
+                        Row(label="Version", value=version),
+                        Row(label="Service", value=service_status),
+                        Row(label="Status", value=status_badge),
+                        Row(label="Connections", value=conn_badge),
+                        Row(label="Mock mode", value="Yes" if mock else "No"),
+                        Row(label="Installed", value="Yes" if installed else "No"),
+                    ]
+                ),
+            ]
+        )
         return PrefabApp(view=view, title="RustDesk Status")
 
     @mcp.tool(app=True, annotations=_READ_ONLY)
@@ -83,23 +86,31 @@ def register_prefab_cards(mcp: FastMCP, service: RustDeskService) -> None:
             status = s.get("status", "?")
             session_id = s.get("session_id", s.get("connection_id", "?"))
 
-            cards.append(Card(children=[
-                CardHeader(children=[CardTitle(f"Session {session_id}")]),
-                CardContent(children=[
-                    Row(label="Type", value=conn_type),
-                    Row(label="Remote", value=remote_ip),
-                    Row(label="Status", value=status),
-                ]),
-            ]))
+            cards.append(
+                Card(
+                    children=[
+                        CardHeader(children=[CardTitle(f"Session {session_id}")]),
+                        CardContent(
+                            children=[
+                                Row(label="Type", value=conn_type),
+                                Row(label="Remote", value=remote_ip),
+                                Row(label="Status", value=status),
+                            ]
+                        ),
+                    ]
+                )
+            )
 
         if not cards:
             cards.append(Text("No active sessions"))
 
-        view = Div(children=[
-            Heading(f"Active Sessions ({len(sessions)})"),
-            Separator(),
-            *cards,
-        ])
+        view = Div(
+            children=[
+                Heading(f"Active Sessions ({len(sessions)})"),
+                Separator(),
+                *cards,
+            ]
+        )
         return PrefabApp(view=view, title="Active Sessions")
 
     @mcp.tool(app=True, annotations=_READ_ONLY)
@@ -130,11 +141,13 @@ def register_prefab_cards(mcp: FastMCP, service: RustDeskService) -> None:
         if not cards:
             cards.append(Text("No address book entries"))
 
-        view = Div(children=[
-            Heading(f"Address Book ({len(entries)})"),
-            Separator(),
-            *cards,
-        ])
+        view = Div(
+            children=[
+                Heading(f"Address Book ({len(entries)})"),
+                Separator(),
+                *cards,
+            ]
+        )
         return PrefabApp(view=view, title="Address Book")
 
     @mcp.tool(app=True, annotations=_READ_ONLY)
@@ -161,14 +174,18 @@ def register_prefab_cards(mcp: FastMCP, service: RustDeskService) -> None:
             variant="success" if running else "secondary",
         )
 
-        view = Div(children=[
-            Heading("RustDesk Installation"),
-            Div(children=[
-                Row(label="Installed", value=install_badge),
-                Row(label="Service", value=run_badge),
-                Row(label="Executable", value=exe_path),
-                Row(label="Config dir", value=config_dir),
-                Row(label="Mock mode", value="Yes" if service.mock_mode else "No"),
-            ]),
-        ])
+        view = Div(
+            children=[
+                Heading("RustDesk Installation"),
+                Div(
+                    children=[
+                        Row(label="Installed", value=install_badge),
+                        Row(label="Service", value=run_badge),
+                        Row(label="Executable", value=exe_path),
+                        Row(label="Config dir", value=config_dir),
+                        Row(label="Mock mode", value="Yes" if service.mock_mode else "No"),
+                    ]
+                ),
+            ]
+        )
         return PrefabApp(view=view, title="RustDesk Installation")

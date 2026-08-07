@@ -4,6 +4,7 @@ Documentation for RustDesk MCP Server.
 This module provides comprehensive documentation for the RustDesk MCP server,
 including tool descriptions, usage examples, and feature overview.
 """
+
 from typing import Any
 
 # Main documentation structure
@@ -17,8 +18,8 @@ MCP_DOCS = {
             "File transfer between local and remote systems",
             "Screen capture and recording",
             "System resource monitoring",
-            "Session management and tracking"
-        ]
+            "Session management and tracking",
+        ],
     },
     "tools": {
         "connection": [
@@ -28,18 +29,28 @@ MCP_DOCS = {
                 "parameters": [
                     {"name": "peer_id", "type": "str", "required": True, "description": "ID of the peer to connect to"},
                     {"name": "password", "type": "str", "required": True, "description": "Password for the peer"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID for tracking"}
+                    {
+                        "name": "session_id",
+                        "type": "str",
+                        "required": False,
+                        "description": "Optional session ID for tracking",
+                    },
                 ],
-                "returns": "Dict with connection status and session information"
+                "returns": "Dict with connection status and session information",
             },
             {
                 "name": "disconnect_peer",
                 "description": "Disconnect from a connected peer or all peers",
                 "parameters": [
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID to disconnect"}
+                    {
+                        "name": "session_id",
+                        "type": "str",
+                        "required": False,
+                        "description": "Optional session ID to disconnect",
+                    }
                 ],
-                "returns": "Dict with disconnection status"
-            }
+                "returns": "Dict with disconnection status",
+            },
         ],
         "file_transfer": [
             {
@@ -48,39 +59,61 @@ MCP_DOCS = {
                 "parameters": [
                     {"name": "local_path", "type": "str", "required": True, "description": "Local file path"},
                     {"name": "remote_path", "type": "str", "required": True, "description": "Remote file path"},
-                    {"name": "direction", "type": "str", "required": False, "default": "upload", "description": "'upload' or 'download'"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
+                    {
+                        "name": "direction",
+                        "type": "str",
+                        "required": False,
+                        "default": "upload",
+                        "description": "'upload' or 'download'",
+                    },
+                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"},
                 ],
-                "returns": "Dict with transfer status and details"
+                "returns": "Dict with transfer status and details",
             },
             {
                 "name": "list_remote_files",
                 "description": "List files in a remote directory",
                 "parameters": [
-                    {"name": "remote_path", "type": "str", "required": False, "default": "/", "description": "Path to list"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
+                    {
+                        "name": "remote_path",
+                        "type": "str",
+                        "required": False,
+                        "default": "/",
+                        "description": "Path to list",
+                    },
+                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"},
                 ],
-                "returns": "Dict with directory listing"
-            }
+                "returns": "Dict with directory listing",
+            },
         ],
         "screen_capture": [
             {
                 "name": "take_screenshot",
                 "description": "Capture a screenshot of the remote desktop",
                 "parameters": [
-                    {"name": "save_path", "type": "str", "required": False, "description": "Optional path to save the screenshot"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
+                    {
+                        "name": "save_path",
+                        "type": "str",
+                        "required": False,
+                        "description": "Optional path to save the screenshot",
+                    },
+                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"},
                 ],
-                "returns": "Dict with screenshot information"
+                "returns": "Dict with screenshot information",
             },
             {
                 "name": "start_recording",
                 "description": "Start recording the remote desktop session",
                 "parameters": [
-                    {"name": "save_path", "type": "str", "required": False, "description": "Optional path to save the recording"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
+                    {
+                        "name": "save_path",
+                        "type": "str",
+                        "required": False,
+                        "description": "Optional path to save the recording",
+                    },
+                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"},
                 ],
-                "returns": "Dict with recording status"
+                "returns": "Dict with recording status",
             },
             {
                 "name": "stop_recording",
@@ -88,19 +121,31 @@ MCP_DOCS = {
                 "parameters": [
                     {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
                 ],
-                "returns": "Dict with recording information"
-            }
+                "returns": "Dict with recording information",
+            },
         ],
         "monitoring": [
             {
                 "name": "monitor_resources",
                 "description": "Monitor system resource usage",
                 "parameters": [
-                    {"name": "duration_seconds", "type": "int", "required": False, "default": 60, "description": "Duration in seconds"},
-                    {"name": "interval", "type": "float", "required": False, "default": 5.0, "description": "Interval between measurements"},
-                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
+                    {
+                        "name": "duration_seconds",
+                        "type": "int",
+                        "required": False,
+                        "default": 60,
+                        "description": "Duration in seconds",
+                    },
+                    {
+                        "name": "interval",
+                        "type": "float",
+                        "required": False,
+                        "default": 5.0,
+                        "description": "Interval between measurements",
+                    },
+                    {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"},
                 ],
-                "returns": "Dict with resource usage statistics"
+                "returns": "Dict with resource usage statistics",
             },
             {
                 "name": "get_connection_quality",
@@ -108,25 +153,30 @@ MCP_DOCS = {
                 "parameters": [
                     {"name": "session_id", "type": "str", "required": False, "description": "Optional session ID"}
                 ],
-                "returns": "Dict with connection quality metrics"
-            }
+                "returns": "Dict with connection quality metrics",
+            },
         ],
         "system": [
             {
                 "name": "get_rustdesk_status",
                 "description": "Get the current status of the RustDesk service",
                 "parameters": [],
-                "returns": "Dict with service status information"
+                "returns": "Dict with service status information",
             },
             {
                 "name": "help",
                 "description": "Get help about available MCP tools and features",
                 "parameters": [
-                    {"name": "tool_name", "type": "str", "required": False, "description": "Optional tool name to get specific help"}
+                    {
+                        "name": "tool_name",
+                        "type": "str",
+                        "required": False,
+                        "description": "Optional tool name to get specific help",
+                    }
                 ],
-                "returns": "Structured help documentation"
-            }
-        ]
+                "returns": "Structured help documentation",
+            },
+        ],
     },
     "examples": {
         "basic_connection": """
@@ -158,9 +208,10 @@ MCP_DOCS = {
             save_path="/recordings/session.mp4",
             session_id="my-session-1"
         )
-        """
-    }
+        """,
+    },
 }
+
 
 class HelpTool:
     """Help tool for RustDesk MCP server documentation."""
@@ -186,7 +237,7 @@ class HelpTool:
                             "description": tool["description"],
                             "parameters": tool["parameters"],
                             "returns": tool["returns"],
-                            "category": category
+                            "category": category,
                         }
             return {"error": f"Tool '{tool_name}' not found"}
 
@@ -203,11 +254,12 @@ class HelpTool:
                 "tool_name": {
                     "type": "string",
                     "description": "Name of the tool to get specific help for",
-                    "required": False
+                    "required": False,
                 }
             },
-            "method": cls.get_help
+            "method": cls.get_help,
         }
+
 
 # Export the help tool for easy registration
 help_tool = HelpTool()

@@ -27,5 +27,6 @@ except ImportError as e:
 except Exception as e:
     print(f"Server startup error: {e}", file=sys.stderr)
     import traceback
+
     traceback.print_exc()
     sys.exit(1)

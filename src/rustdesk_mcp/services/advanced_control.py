@@ -18,10 +18,7 @@ class AdvancedControlService:
     """Service for safe remote control of RustDesk windows."""
 
     def __init__(self, control_enabled: bool = True):
-        self.control_enabled = (
-            control_enabled
-            and os.getenv("RUSTDESK_CONTROL_ENABLED", "true").lower() == "true"
-        )
+        self.control_enabled = control_enabled and os.getenv("RUSTDESK_CONTROL_ENABLED", "true").lower() == "true"
         self.last_action_time = 0
         self.min_action_interval = 0.5  # 500ms between actions
         self.audit_log_path = "rustdesk_control.log"
@@ -60,9 +57,7 @@ class AdvancedControlService:
         rect = window.box
         return rect.left <= x <= rect.right and rect.top <= y <= rect.bottom
 
-    async def remote_click(
-        self, x: int, y: int, button: str = "left"
-    ) -> dict[str, Any]:
+    async def remote_click(self, x: int, y: int, button: str = "left") -> dict[str, Any]:
         """Perform a safe mouse click in the RustDesk window."""
         safe, message = self._check_safety()
         if not safe:
@@ -71,9 +66,7 @@ class AdvancedControlService:
 
         window = self.find_rustdesk_window()
         if not window:
-            self._log_audit(
-                "click", {"x": x, "y": y, "error": "No RustDesk window found"}, False
-            )
+            self._log_audit("click", {"x": x, "y": y, "error": "No RustDesk window found"}, False)
             return {
                 "success": False,
                 "error": "No active RustDesk remote window found.",

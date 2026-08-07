@@ -60,9 +60,7 @@ async def main():
         rustdesk_tools = RustDeskTools(rustdesk_service)
 
         if rustdesk_service.mock_mode:
-            logger.warning(
-                "RustDesk service initialized in mock mode - install RustDesk for full functionality"
-            )
+            logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
         else:
             logger.info("RustDesk service initialized successfully")
 
@@ -142,9 +140,7 @@ async def register_tools(
         return {
             "installed": service.is_installed(),
             "running": service.is_running(),
-            "executable_path": str(service.rustdesk_path)
-            if service.rustdesk_path
-            else None,
+            "executable_path": str(service.rustdesk_path) if service.rustdesk_path else None,
             "config_dir": str(service.config_dir) if service.config_dir else None,
             "mock_mode": service.mock_mode,
         }
@@ -180,9 +176,7 @@ async def register_tools(
         return await service.get_address_book()
 
     @mcp.tool()
-    async def connect_to_peer(
-        peer_id: str, password: str, session_id: str | None = None
-    ) -> dict:
+    async def connect_to_peer(peer_id: str, password: str, session_id: str | None = None) -> dict:
         """
         Establish a remote desktop connection to a RustDesk peer.
 
@@ -196,9 +190,7 @@ async def register_tools(
         """
         from rustdesk_mcp.tools_module import ConnectionRequest
 
-        request = ConnectionRequest(
-            peer_id=peer_id, password=password, session_id=session_id
-        )
+        request = ConnectionRequest(peer_id=peer_id, password=password, session_id=session_id)
         return await tools.connect_to_peer(request)
 
     @mcp.tool()
@@ -244,9 +236,7 @@ async def register_tools(
         return await tools.transfer_file(request)
 
     @mcp.tool()
-    async def list_remote_files(
-        remote_path: str = "/", session_id: str | None = None
-    ) -> dict:
+    async def list_remote_files(remote_path: str = "/", session_id: str | None = None) -> dict:
         """
         List files in a remote directory.
 
@@ -260,9 +250,7 @@ async def register_tools(
         return await tools.list_remote_files(remote_path, session_id)
 
     @mcp.tool()
-    async def take_screenshot(
-        save_path: str | None = None, session_id: str | None = None
-    ) -> dict:
+    async def take_screenshot(save_path: str | None = None, session_id: str | None = None) -> dict:
         """
         Capture a screenshot of the remote desktop session.
 
@@ -279,9 +267,7 @@ async def register_tools(
         return await tools.take_screenshot(request)
 
     @mcp.tool()
-    async def start_recording(
-        save_path: str | None = None, session_id: str | None = None
-    ) -> dict:
+    async def start_recording(save_path: str | None = None, session_id: str | None = None) -> dict:
         """
         Start recording the remote desktop session.
 
@@ -327,9 +313,7 @@ async def register_tools(
         """
         from rustdesk_mcp.tools_module import MonitoringRequest
 
-        request = MonitoringRequest(
-            duration_seconds=duration_seconds, interval=interval, session_id=session_id
-        )
+        request = MonitoringRequest(duration_seconds=duration_seconds, interval=interval, session_id=session_id)
         return await tools.monitor_resources(request)
 
     @mcp.tool()
