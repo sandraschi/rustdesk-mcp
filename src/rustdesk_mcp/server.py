@@ -38,7 +38,7 @@ _MUTATING = {}
 
 
 def _error_response(error: str, error_type: str = "general", **kwargs) -> dict[str, Any]:
-    """Auto-logging error response — traceback logged before returning to caller."""
+    """Auto-logging error response - traceback logged before returning to caller."""
     logger.exception("Tool error: %s [%s]", error, error_type)
     return {"success": False, "error": error, "error_type": error_type, **kwargs}
 
@@ -52,7 +52,7 @@ wol_service: WolService | None = None
 web_app = FastAPI(title="Remote Desktop Web Bridge")
 app = web_app  # Alias for exception handlers and __init__ export
 
-# Fleet CORS standard — webapp REST routes must allow the browser origin
+# Fleet CORS standard - webapp REST routes must allow the browser origin
 # (dev Vite 10804 + Tauri WebView). Without this the frontend fetch fails
 # with "Failed to fetch" while curl/PowerShell still works.
 web_app.add_middleware(
@@ -822,10 +822,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     )
 
 
-# Health check endpoint (no auth — fleet probe + load balancers)
+# Health check endpoint (no auth - fleet probe + load balancers)
 @app.get("/health", dependencies=[])
 async def health_check() -> dict[str, Any]:
-    """Health check endpoint — fleet standard format."""
+    """Health check endpoint - fleet standard format."""
     tool_count = len(mcp.list_tools()) if mcp else 0
     return {
         "status": "ok",
@@ -841,9 +841,16 @@ async def health_check() -> dict[str, Any]:
 # Main entry point
 def main():
     """Main entry point with unified transport handling (FastMCP 2.14.4+)."""
-    # Check if we should run the web server instead of just MCP
-    if os.getenv("MCP_TRANSPORT") == "http" or "--http" in sys.argv:
-        port = int(os.getenv("MCP_PORT", "10805"))
+    # HTTP mode triggers: explicit MCP_TRANSPORT, --http argv, OR Tauri spawn
+    # (backend.rs sets RUSTDESK_MCP_TAURI=1 + PORT=10805). The frozen exe has no
+    # --http in argv, so without this check it silently runs stdio and never
+    # opens the port the webview polls.
+    if (
+        os.getenv("MCP_TRANSPORT") == "http"
+        or "--http" in sys.argv
+        or os.getenv("RUSTDESK_MCP_TAURI") == "1"
+    ):
+        port = int(os.getenv("PORT") or os.getenv("MCP_PORT") or "10805")
         print(f"Starting Remote Desktop Web Bridge on port {port}...")
         import uvicorn
 

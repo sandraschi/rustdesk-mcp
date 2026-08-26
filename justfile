@@ -38,11 +38,12 @@ audit-deps:
 
 # --- Native  Tauri ---
 
-# Build the Tauri NSIS desktop installer (full pipeline: frontend -> Rust -> NSIS)
+# Build the Tauri NSIS desktop installer (full pipeline: frontend -> PyInstaller backend -> embed -> Rust -> NSIS).
+# Must use native/build.ps1, NOT bare `npx @tauri-apps/cli build` - that skips PyInstaller
+# and ships a stale/missing resources/rustdesk-mcp-backend.exe (see TAURI_PRODUCTION_PITFALLS.md §H).
 build-native:
 	$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-	Set-Location '{{justfile_directory()}}\native'
-	npx @tauri-apps/cli build --bundles nsis
+	pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
 
 
 # Bootstrap: install dev deps + pre-commit hook
