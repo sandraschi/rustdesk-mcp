@@ -181,12 +181,12 @@ export function ServerStatus() {
 					<div className="space-y-2 text-sm text-slate-400">
 						<div className="flex justify-between py-1 border-b border-slate-800">
 							<span>Start everything</span>
-							<code className="text-xs text-slate-500">rustdesk-start.ps1</code>
+							<code className="text-xs text-slate-500">start-stack.ps1</code>
 						</div>
 						<div className="flex justify-between py-1 border-b border-slate-800">
 							<span>Stop everything</span>
 							<code className="text-xs text-slate-500">
-								rustdesk-start.ps1 -Kill
+								start-stack.ps1 -Kill
 							</code>
 						</div>
 						<div className="flex justify-between py-1 border-b border-slate-800">

@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env pwsh
-# rustdesk-start.ps1 - Launch everything (hbbs/hbbr, fork API, MCP backend, webapp)
+# start-stack.ps1 - Launch the whole rustdesk++ stack (hbbs/hbbr, fork API, MCP backend, webapp)
 # Ports: 10804 (Vite), 10805 (MCP), 10806 (fork), 21116 (hbbs), 21117 (hbbr)
 
 param([switch]$Kill)
