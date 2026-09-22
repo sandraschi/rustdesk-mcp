@@ -9,6 +9,19 @@ New-Item -ItemType Directory -Force -Path $ResourceDir, $DevDir | Out-Null
 
 Write-Host "=== ${RepoName} Tauri Release Build ===" -ForegroundColor Cyan
 
+# Naked `bun`/`bunx` inherit whatever PATH the invoking shell happened to
+# have, which can predate bun's installer PATH registration in an
+# already-open shell (BUG-045). Resolve a qualified path once instead
+# (replaces the earlier $env:Path-prepend workaround, which left the later
+# `bunx @tauri-apps/cli` call implicitly relying on an earlier block's PATH
+# mutation still being in scope).
+$bunExe = Join-Path $env:USERPROFILE ".bun\bin\bun.exe"
+if (-not (Test-Path $bunExe)) { $bunExe = (Get-Command bun -ErrorAction SilentlyContinue).Source }
+if (-not $bunExe) { throw "bun not found — install from https://bun.sh" }
+$bunxExe = Join-Path $env:USERPROFILE ".bun\bin\bunx.exe"
+if (-not (Test-Path $bunxExe)) { $bunxExe = (Get-Command bunx -ErrorAction SilentlyContinue).Source }
+if (-not $bunxExe) { throw "bunx not found — install from https://bun.sh" }
+
 # Step 0: Verify API_BASE matches backend port
 Write-Host "-> [0/5] Verifying API_BASE port..." -ForegroundColor Yellow
 $apiFile = Join-Path $Root "web_sota\src\lib\api.ts"
@@ -38,11 +51,10 @@ foreach ($dir in $frontendDirs) {
     if (Test-Path "$frontend\package.json") {
         Write-Host "-> [2/5] Building frontend ($dir)..." -ForegroundColor Yellow
         Push-Location $frontend
-        $env:Path = "$env:USERPROFILE\.bun\bin;$env:Path"
-        bun install --silent 2>$null
+        & $bunExe install --silent 2>$null
 
         Write-Host "  tsc --noEmit..." -ForegroundColor Gray
-        $tscOut = bunx tsc --noEmit 2>&1
+        $tscOut = & $bunxExe tsc --noEmit 2>&1
         $tscExit = $LASTEXITCODE
         if ($tscExit -ne 0) {
             Write-Host "  TypeScript compilation FAILED - fix errors before building NSIS" -ForegroundColor Red
@@ -50,7 +62,7 @@ foreach ($dir in $frontendDirs) {
             throw "TypeScript compilation failed - fix all errors before building NSIS installer"
         }
 
-        bun run build
+        & $bunExe run build
         if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
         Pop-Location
         break
@@ -113,7 +125,7 @@ if (Test-Path $envExample) {
 Write-Host "-> [5/5] Tauri NSIS bundle..." -ForegroundColor Yellow
 Push-Location $PSScriptRoot
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-bunx @tauri-apps/cli build --bundles nsis
+& $bunxExe @tauri-apps/cli build --bundles nsis
 if ($LASTEXITCODE -ne 0) { throw "Tauri build failed with exit code $LASTEXITCODE" }
 Pop-Location
 
