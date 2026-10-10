@@ -12,7 +12,7 @@ from fastmcp import FastMCP
 from rustdesk_mcp.config import Config
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
 from rustdesk_mcp.services.session_manager import SessionManager
-from rustdesk_mcp.tools import RustDeskTools
+from rustdesk_mcp.tools_module import RustDeskTools
 
 
 @pytest.fixture

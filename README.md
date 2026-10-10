@@ -6,7 +6,7 @@
 [![Just](https://img.shields.io/badge/just-ready_to_go-7c5cfc?logo=just&logoColor=white)](https://github.com/casey/just)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-FastMCP 3.4+ server for RustDesk remote desktop management. 16 tools for device status, peer connections, file transfers, Wake-on-LAN, resource monitoring, and session management. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp.
+FastMCP 3.4+ server for RustDesk remote desktop management. 24 tools for device status, peer connections, file transfers, Wake-on-LAN, resource monitoring, session management, and local remote-input control. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp.
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ cd rustdesk-mcp
 uv sync && uv run rustdesk-mcp
 ```
 
-## Tools (16)
+## Tools (24)
 
 All tools have SOTA docstrings with `Annotated[Field(description=...)]` parameters, `## Return Format`, and `## Examples`. Tools annotated with `READ_ONLY` or `MUTATING` annotations.
 
@@ -43,6 +43,14 @@ All tools have SOTA docstrings with `Annotated[Field(description=...)]` paramete
 | `monitor_resources` | READ_ONLY | CPU/memory/disk/network sampling over time |
 | `get_connection_quality` | READ_ONLY | System-level network I/O counters |
 | `wake_on_lan` | MUTATING | Send magic packet to wake sleeping machine |
+| `add_address_book_entry` | MUTATING | Add a peer to addrbook.toml |
+| `update_address_book_entry` | MUTATING | Update a peer alias/note/tags |
+| `remove_address_book_entry` | MUTATING | Remove a peer from addrbook.toml |
+| `compare_folders` | READ_ONLY | Diff local dir vs. remote dir (size/mtime) |
+| `sync_folder` | MUTATING | Push/pull missing/newer files with dry-run preview |
+| `remote_click` | MUTATING | Click in the active RustDesk window (left/right/middle, double) |
+| `remote_type` | MUTATING | Type text into the active RustDesk window |
+| `send_remote_keys` | MUTATING | Send shortcut chord (ctrl+c, alt+F4, super+d) |
 
 ## Architecture
 
