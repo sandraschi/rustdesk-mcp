@@ -24,6 +24,7 @@ from pydantic import Field
 
 from .api.v1.routes import router as api_v1_router
 from .config import get_config
+from .services.advanced_control import AdvancedControlService
 from .services.rustdesk_service import RustDeskService
 from .services.wol_service import WolService
 from .tools_module import RustDeskTools
@@ -47,6 +48,7 @@ def _error_response(error: str, error_type: str = "general", **kwargs) -> dict[s
 rustdesk_service: RustDeskService | None = None
 rustdesk_tools: RustDeskTools | None = None
 wol_service: WolService | None = None
+advanced_control: AdvancedControlService | None = None
 
 # FastAPI Bridge - Unified with Alexa/Bookmark pattern
 web_app = FastAPI(title="Remote Desktop Web Bridge")
@@ -93,7 +95,7 @@ async def fleet_public_health(request: Request, call_next):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown."""
-    global rustdesk_service, rustdesk_tools, wol_service
+    global rustdesk_service, rustdesk_tools, wol_service, advanced_control
 
     # Startup
     try:
@@ -107,6 +109,7 @@ async def lifespan(app: FastAPI):
         rustdesk_service = RustDeskService(config.rustdesk_path, config.rustdesk_config_dir)
         rustdesk_tools = RustDeskTools(rustdesk_service)
         wol_service = WolService()
+        advanced_control = AdvancedControlService()
 
         if rustdesk_service.mock_mode:
             logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
@@ -140,11 +143,12 @@ setup_webapp(web_app, mcp_app=mcp)
 
 async def init_for_stdio() -> None:
     """Initialize service and register tools for STDIO mode (called before run_server)."""
-    global rustdesk_service, rustdesk_tools, wol_service
+    global rustdesk_service, rustdesk_tools, wol_service, advanced_control
     config = get_config()
     rustdesk_service = RustDeskService(config.rustdesk_path, config.rustdesk_config_dir)
     rustdesk_tools = RustDeskTools(rustdesk_service)
     wol_service = WolService()
+    advanced_control = AdvancedControlService()
     if rustdesk_service.mock_mode:
         logger.warning("RustDesk service initialized in mock mode - install RustDesk for full functionality")
     await register_tools()
@@ -797,6 +801,73 @@ async def register_tools():
         if hostname:
             result["hostname"] = hostname
         return result
+
+    # Remote input tools (local GUI session window control)
+    @mcp.tool(annotations=_MUTATING)
+    async def remote_click(
+        x: Annotated[int, Field(description="Absolute X screen coordinate to click.")],
+        y: Annotated[int, Field(description="Absolute Y screen coordinate to click.")],
+        button: Annotated[str, Field(description="'left', 'right', or 'middle' mouse button.")] = "left",
+        double: Annotated[bool, Field(description="Double-click instead of single click.")] = False,
+    ) -> dict[str, Any]:
+        """Click inside the active RustDesk remote-session window.
+
+        Coordinates must fall within the RustDesk window bounds, otherwise the
+        call fails safely. Actions are rate-limited (500ms) and audit-logged.
+
+        ## Return Format
+        {"success": bool, "message": str, "error": str}
+
+        ## Examples
+        await remote_click(x=640, y=480)
+        await remote_click(x=100, y=200, button="right")
+        await remote_click(x=300, y=300, double=True)
+
+        Notes:
+         - Finds the first RustDesk window whose title contains an ID dash
+         - Disabled when RUSTDESK_CONTROL_ENABLED=false
+        """
+        if advanced_control is None:
+            return _error_response("Control service not initialized", "not_initialized")
+        return await advanced_control.remote_click(x, y, button, double)
+
+    @mcp.tool(annotations=_MUTATING)
+    async def remote_type(
+        text: Annotated[str, Field(description="Text to type into the remote session (max 1000 chars).")],
+    ) -> dict[str, Any]:
+        """Type text into the active RustDesk remote-session window.
+
+        ## Return Format
+        {"success": bool, "message": str, "error": str}
+
+        ## Examples
+        await remote_type(text="hello world")
+        """
+        if advanced_control is None:
+            return _error_response("Control service not initialized", "not_initialized")
+        return await advanced_control.remote_type(text)
+
+    @mcp.tool(annotations=_MUTATING)
+    async def send_remote_keys(
+        keys: Annotated[str, Field(description="Key chord, e.g. 'ctrl+c', 'alt+F4', 'super+d'.")] = "ctrl+c",
+    ) -> dict[str, Any]:
+        """Send a shortcut chord to the active RustDesk remote-session window.
+
+        Modifiers: ctrl, alt, shift, super/win. Joined with '+'.
+
+        ## Return Format
+        {"success": bool, "message": str, "error": str}
+
+        ## Examples
+        await send_remote_keys(keys="ctrl+c")
+        await send_remote_keys(keys="alt+F4")
+
+        Notes:
+         - Single letters pass through; named keys are wrapped ({F4}, {DELETE})
+        """
+        if advanced_control is None:
+            return _error_response("Control service not initialized", "not_initialized")
+        return await advanced_control.send_remote_keys(keys)
 
 
 # Exception handlers and route registrations
