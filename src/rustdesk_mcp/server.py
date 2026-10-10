@@ -44,6 +44,115 @@ def _error_response(error: str, error_type: str = "general", **kwargs) -> dict[s
     return {"success": False, "error": error, "error_type": error_type, **kwargs}
 
 
+def _match_excluded(rel_posix: str, patterns: list[str]) -> bool:
+    """fnmatch a relative posix path against exclude patterns (any segment or basename)."""
+    import fnmatch
+
+    parts = rel_posix.split("/")
+    candidates = [rel_posix, *parts]
+    return any(fnmatch.fnmatch(c, p) for c in candidates for p in patterns)
+
+
+def _walk_local_files(root: Path, recursive: bool, exclude: list[str]) -> dict[str, dict[str, Any]]:
+    """Map relative-posix-path -> {size, mtime} for local files, honouring excludes."""
+    out: dict[str, dict[str, Any]] = {}
+    entries = root.rglob("*") if recursive else root.iterdir()
+    for entry in entries:
+        if not entry.is_file():
+            continue
+        try:
+            rel = entry.relative_to(root).as_posix()
+        except ValueError:
+            continue
+        if exclude and _match_excluded(rel, exclude):
+            continue
+        try:
+            s = entry.stat()
+        except OSError:
+            continue
+        out[rel] = {"size": s.st_size, "mtime": int(s.st_mtime)}
+    return out
+
+
+def _parse_fork_list_line(line: str) -> tuple[str, int, str] | None:
+    """Parse one fork --list-dir line like '[FILE] name 123b' -> (name, size, kind)."""
+    import re
+
+    m = re.match(r"\[(FILE|DIR)\]\s+(.+?)\s+(\d+)b\s*$", line.strip())
+    if not m:
+        return None
+    return m.group(2), int(m.group(3)), m.group(1).lower()
+
+
+def _parse_remote_files(items: list[Any], exclude: list[str]) -> dict[str, dict[str, Any]]:
+    """Normalise remote listing items (API dicts or fork display strings)."""
+    out: dict[str, dict[str, Any]] = {}
+    for f in items:
+        if isinstance(f, dict):
+            name = f.get("name", f.get("filename", ""))
+            if not name:
+                continue
+            if exclude and _match_excluded(name, exclude):
+                continue
+            out[name] = {
+                "size": f.get("size", 0),
+                "mtime": f.get("mtime", f.get("modified", 0)),
+            }
+        elif isinstance(f, str):
+            parsed = _parse_fork_list_line(f)
+            if parsed is None:
+                continue
+            name, size, kind = parsed
+            if kind == "dir":
+                continue
+            if exclude and _match_excluded(name, exclude):
+                continue
+            out[name] = {"size": size, "mtime": 0}
+    return out
+
+
+def _diff_file_maps(local_files: dict[str, dict[str, Any]], remote_files: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Diff two {name: {size, mtime}} maps. Pure function, unit-tested."""
+    only_local = sorted(set(local_files) - set(remote_files))
+    only_remote = sorted(set(remote_files) - set(local_files))
+    common = set(local_files) & set(remote_files)
+
+    size_mismatch: list[dict[str, Any]] = []
+    newer_local: list[str] = []
+    newer_remote: list[str] = []
+    identical: list[str] = []
+    for f in sorted(common):
+        lf = local_files[f]
+        rf = remote_files[f]
+        if lf["size"] != rf["size"]:
+            size_mismatch.append({"file": f, "local_size": lf["size"], "remote_size": rf["size"]})
+        elif lf["mtime"] > rf["mtime"]:
+            newer_local.append(f)
+        elif rf["mtime"] > lf["mtime"]:
+            newer_remote.append(f)
+        else:
+            identical.append(f)
+    return {
+        "only_local": only_local,
+        "only_remote": only_remote,
+        "size_mismatch": size_mismatch,
+        "newer_local": newer_local,
+        "newer_remote": newer_remote,
+        "identical": identical,
+    }
+
+
+def _sha256_file(path: Path) -> str:
+    """SHA-256 hex digest of a file, streamed in 1MB chunks."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 # Store the service instances
 rustdesk_service: RustDeskService | None = None
 rustdesk_tools: RustDeskTools | None = None
@@ -493,6 +602,7 @@ async def register_tools():
     async def list_remote_files(
         remote_path: Annotated[str, Field(description="Remote directory path to list.")] = "/",
         session_id: Annotated[str | None, Field(description="Session identifier.")] = None,
+        peer_id: Annotated[str | None, Field(description="RustDesk peer ID (enables fork --list-dir).")] = None,
     ) -> dict[str, Any]:
         """List files in a remote directory.
 
@@ -501,17 +611,24 @@ async def register_tools():
 
         ## Examples
         await list_remote_files(remote_path="/home/user/documents")
+        await list_remote_files(remote_path="/home/user/documents", peer_id="123456789")
 
         Errors:
-         - Returns error_type="not_implemented" when API server is not configured
+         - Returns error_type="not_implemented" when neither API server nor fork peer_id is available
         """
-        return await rustdesk_tools.list_remote_files(remote_path, session_id)
+        return await rustdesk_tools.list_remote_files(remote_path, session_id, peer_id)
 
     @mcp.tool(annotations=_READ_ONLY)
     async def compare_folders(
         local_dir: Annotated[str, Field(description="Local directory path to compare.")],
         remote_dir: Annotated[str, Field(description="Remote directory path to compare.")],
         session_id: Annotated[str | None, Field(description="Optional session identifier.")] = None,
+        peer_id: Annotated[str | None, Field(description="RustDesk peer ID (enables fork --list-dir).")] = None,
+        exclude: Annotated[
+            list[str] | None,
+            Field(description="fnmatch excludes, e.g. ['*.pyc', '__pycache__', '.git']."),
+        ] = None,
+        recursive: Annotated[bool, Field(description="Descend into subdirectories.")] = False,
     ) -> dict[str, Any]:
         """Compare a local directory against a remote directory.
 
@@ -525,24 +642,27 @@ async def register_tools():
 
         ## Examples
         compare_folders(local_dir="/local/configs", remote_dir="/etc/configs")
-        compare_folders(local_dir="./data", remote_dir="/home/user/data", session_id="sess_123")
+        compare_folders(local_dir="./data", remote_dir="/home/user/data", peer_id="123456789")
+        compare_folders(local_dir="./src", remote_dir="/remote/src", exclude=["*.pyc"], recursive=True)
+
+        Notes:
+         - Without peer_id the remote side needs RUSTDESK_API_URL; fork --list-dir
+           output carries name+size only (no remote mtime), so newer_* only apply
+           when the API provides mtimes.
         """
         from pathlib import Path as _Path
 
+        patterns = exclude or []
         lp = _Path(local_dir).expanduser().resolve()
         if not lp.is_dir():
             return {"success": False, "error": f"Local directory not found: {lp}"}
 
-        local_files: dict[str, dict] = {}
         try:
-            for entry in lp.iterdir():
-                if entry.is_file():
-                    s = entry.stat()
-                    local_files[entry.name] = {"size": s.st_size, "mtime": int(s.st_mtime)}
+            local_files = _walk_local_files(lp, recursive, patterns)
         except Exception as e:
             return {"success": False, "error": f"Failed to read local directory: {e}"}
 
-        remote_result = await rustdesk_tools.list_remote_files(remote_dir, session_id)
+        remote_result = await rustdesk_tools.list_remote_files(remote_dir, session_id, peer_id)
         if not remote_result.get("success"):
             return {
                 "success": False,
@@ -552,45 +672,18 @@ async def register_tools():
 
         remote_data = remote_result.get("data", {})
         remote_items = remote_data.get("files", remote_data.get("items", remote_data.get("entries", [])))
-        remote_files: dict[str, dict] = {}
-        for f in remote_items:
-            if isinstance(f, dict):
-                name = f.get("name", f.get("filename", ""))
-                if name:
-                    remote_files[name] = {"size": f.get("size", 0), "mtime": f.get("mtime", f.get("modified", 0))}
-
-        only_local = sorted(set(local_files) - set(remote_files))
-        only_remote = sorted(set(remote_files) - set(local_files))
-        common = set(local_files) & set(remote_files)
-
-        size_mismatch = []
-        newer_local = []
-        newer_remote = []
-        identical = []
-        for f in sorted(common):
-            lf = local_files[f]
-            rf = remote_files[f]
-            if lf["size"] != rf["size"]:
-                size_mismatch.append({"file": f, "local_size": lf["size"], "remote_size": rf["size"]})
-            elif lf["mtime"] > rf["mtime"]:
-                newer_local.append(f)
-            elif rf["mtime"] > lf["mtime"]:
-                newer_remote.append(f)
-            else:
-                identical.append(f)
+        remote_files = _parse_remote_files(remote_items, patterns)
+        diff = _diff_file_maps(local_files, remote_files)
 
         return {
             "success": True,
             "local_dir": str(lp),
             "remote_dir": remote_dir,
-            "only_local": only_local,
-            "only_remote": only_remote,
-            "size_mismatch": size_mismatch,
-            "newer_local": newer_local,
-            "newer_remote": newer_remote,
-            "identical": identical,
             "local_count": len(local_files),
             "remote_count": len(remote_files),
+            "recursive": recursive,
+            "exclude": patterns,
+            **diff,
         }
 
     @mcp.tool(annotations=_MUTATING)
@@ -603,39 +696,70 @@ async def register_tools():
         dry_run: Annotated[bool, Field(description="If True, only report what would be transferred.")] = True,
         session_id: Annotated[str | None, Field(description="Optional session identifier.")] = None,
         peer_id: Annotated[str | None, Field(description="RustDesk peer ID for transfer.")] = None,
+        exclude: Annotated[
+            list[str] | None,
+            Field(description="fnmatch excludes, e.g. ['*.pyc', '__pycache__', '.git']."),
+        ] = None,
+        recursive: Annotated[bool, Field(description="Descend into subdirectories.")] = False,
+        verify: Annotated[
+            bool,
+            Field(description="Record local SHA-256 per transferred file for later verify_file_integrity."),
+        ] = False,
     ) -> dict[str, Any]:
         """Synchronize a local directory with a remote directory.
 
-        Runs a comparison first, then transfers files that are missing or newer
-        in the source directory to the destination. Supports dry-run to preview.
+        Runs a comparison first, then transfers files that are missing, newer,
+        or size-diverged in the source directory to the destination.
+        Supports dry-run to preview.
 
         ## Return Format
-        {"success": bool, "direction": str, "dry_run": bool, "transferred": [str], "skipped": [str], "errors": [str]}
+        {"success": bool, "direction": str, "dry_run": bool, "transferred": [str], "skipped": [str],
+         "errors": [str], "hashes": {file: sha256}, "total": int}
 
         ## Examples
         sync_folder(local_dir="./configs", remote_dir="/etc/configs", dry_run=True)
         sync_folder(local_dir="./data", remote_dir="/home/user/data", direction="to_remote", dry_run=False)
+        sync_folder(local_dir="./src", remote_dir="/remote/src", peer_id="123456789",
+                    exclude=["*.pyc"], recursive=True, verify=True, dry_run=False)
         """
-        compare = await compare_folders(local_dir, remote_dir, session_id)
+        compare = await compare_folders(local_dir, remote_dir, session_id, peer_id, exclude, recursive)
         if not compare.get("success"):
             return {"success": False, "error": compare.get("error", "compare failed")}
 
+        # Size-diverged files must be re-transferred too (old code dropped them).
+        diverged = [e["file"] for e in compare.get("size_mismatch", [])]
         if direction == "to_remote":
-            to_transfer = compare.get("only_local", []) + compare.get("newer_local", [])
+            to_transfer = (
+                compare.get("only_local", [])
+                + compare.get("newer_local", [])
+                + [f for f in diverged if f not in compare.get("only_local", [])]
+            )
         else:
-            to_transfer = compare.get("only_remote", []) + compare.get("newer_remote", [])
+            to_transfer = (
+                compare.get("only_remote", [])
+                + compare.get("newer_remote", [])
+                + [f for f in diverged if f not in compare.get("only_remote", [])]
+            )
 
         from pathlib import Path as _Path
 
+        base = _Path(local_dir).expanduser().resolve()
         transferred = []
         skipped = []
         errors = []
+        hashes: dict[str, str] = {}
         for fname in to_transfer:
-            local_path = str(_Path(local_dir).expanduser().resolve() / fname)
+            local_path = str(base / fname)
             remote_path = f"{remote_dir.rstrip('/')}/{fname}"
             if dry_run:
                 skipped.append(fname)
                 continue
+            if verify and direction == "to_remote":
+                try:
+                    hashes[fname] = _sha256_file(_Path(local_path))
+                except OSError as e:
+                    errors.append(f"{fname}: cannot hash local file: {e}")
+                    continue
             try:
                 from .tools_module import FileTransferRequest as _FTR
 
@@ -649,6 +773,11 @@ async def register_tools():
                 result = await rustdesk_tools.transfer_file(req)
                 if result.get("success"):
                     transferred.append(fname)
+                    if verify and direction == "to_local":
+                        try:
+                            hashes[fname] = _sha256_file(_Path(local_path))
+                        except OSError as e:
+                            errors.append(f"{fname}: transferred but cannot hash: {e}")
                 else:
                     errors.append(f"{fname}: {result.get('error', 'transfer failed')}")
             except Exception as e:
@@ -661,7 +790,89 @@ async def register_tools():
             "transferred": transferred,
             "skipped": skipped,
             "errors": errors,
+            "hashes": hashes,
             "total": len(to_transfer),
+        }
+
+    @mcp.tool(annotations=_READ_ONLY)
+    async def verify_file_integrity(
+        local_path: Annotated[str, Field(description="Local file to hash and check.")],
+        remote_dir: Annotated[
+            str | None,
+            Field(description="Remote directory containing the counterpart (size cross-check)."),
+        ] = None,
+        peer_id: Annotated[str | None, Field(description="RustDesk peer ID (enables fork --list-dir).")] = None,
+        session_id: Annotated[str | None, Field(description="Optional session identifier.")] = None,
+    ) -> dict[str, Any]:
+        """Verify a transferred file without pulling the whole payload back.
+
+        Always returns the local SHA-256 + size. When remote_dir (+peer_id or API)
+        is given, cross-checks the remote size. Honest limit: the rustdesk++
+        fork exposes name+size only (no remote hash primitive), so a matching
+        size is consistency evidence, not a cryptographic guarantee. A future
+        fork `--hash-file` flag would close this gap.
+
+        ## Return Format
+        {"success": bool, "local_path": str, "sha256": str, "local_size": int,
+         "remote_size": int | None, "size_match": bool | None, "note": str}
+
+        ## Examples
+        verify_file_integrity(local_path="./data/report.csv")
+        verify_file_integrity(local_path="./data/report.csv", remote_dir="/home/user/data",
+                              peer_id="123456789")
+        """
+        from pathlib import Path as _Path
+
+        lp = _Path(local_path).expanduser().resolve()
+        if not lp.is_file():
+            return {"success": False, "error": f"Local file not found: {lp}"}
+        try:
+            digest = _sha256_file(lp)
+            size = lp.stat().st_size
+        except OSError as e:
+            return {"success": False, "error": f"Cannot read local file: {e}"}
+
+        if not remote_dir:
+            return {
+                "success": True,
+                "local_path": str(lp),
+                "sha256": digest,
+                "local_size": size,
+                "remote_size": None,
+                "size_match": None,
+                "note": "Local hash only; pass remote_dir for a remote size cross-check.",
+            }
+
+        remote_result = await rustdesk_tools.list_remote_files(remote_dir, session_id, peer_id)
+        if not remote_result.get("success"):
+            return {
+                "success": False,
+                "local_path": str(lp),
+                "sha256": digest,
+                "local_size": size,
+                "error": f"Remote listing failed: {remote_result.get('error', 'unknown')}",
+            }
+        remote_data = remote_result.get("data", {})
+        remote_items = remote_data.get("files", remote_data.get("items", remote_data.get("entries", [])))
+        remote_files = _parse_remote_files(remote_items, [])
+        entry = remote_files.get(lp.name)
+        if entry is None:
+            return {
+                "success": False,
+                "local_path": str(lp),
+                "sha256": digest,
+                "local_size": size,
+                "error": f"No remote counterpart named '{lp.name}' in {remote_dir}",
+            }
+        match = entry["size"] == size
+        return {
+            "success": match,
+            "local_path": str(lp),
+            "sha256": digest,
+            "local_size": size,
+            "remote_size": entry["size"],
+            "size_match": match,
+            "note": "Size cross-check only: fork exposes name+size, no remote hash primitive yet.",
         }
 
     # Screen capture tools
@@ -916,11 +1127,7 @@ def main():
     # (backend.rs sets RUSTDESK_MCP_TAURI=1 + PORT=10805). The frozen exe has no
     # --http in argv, so without this check it silently runs stdio and never
     # opens the port the webview polls.
-    if (
-        os.getenv("MCP_TRANSPORT") == "http"
-        or "--http" in sys.argv
-        or os.getenv("RUSTDESK_MCP_TAURI") == "1"
-    ):
+    if os.getenv("MCP_TRANSPORT") == "http" or "--http" in sys.argv or os.getenv("RUSTDESK_MCP_TAURI") == "1":
         port = int(os.getenv("PORT") or os.getenv("MCP_PORT") or "10805")
         print(f"Starting Remote Desktop Web Bridge on port {port}...")
         import uvicorn

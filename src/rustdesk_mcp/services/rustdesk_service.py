@@ -1040,7 +1040,7 @@ class RustDeskService:
 
         return {
             "success": False,
-            "error": "File transfer not available — RustDesk CLI file-transfer not supported in this version",
+            "error": "File transfer not available - RustDesk CLI file-transfer not supported in this version",
             "error_type": "not_implemented",
             "method": "none",
             "suggestions": [
@@ -1051,8 +1051,13 @@ class RustDeskService:
             ],
         }
 
-    async def list_remote_files(self, remote_path: str = "/") -> dict[str, Any]:
-        """List files in remote directory."""
+    async def list_remote_files(self, remote_path: str = "/", peer_id: str | None = None) -> dict[str, Any]:
+        """List files in remote directory.
+
+        Tries the configured REST API first, then the rustdesk++ fork CLI
+        (--list-dir, needs peer_id). Fork output carries name+size only
+        (no mtime); callers must treat mtime as 0 for fork rows.
+        """
         if self.mock_mode:
             return {
                 "success": False,
@@ -1073,13 +1078,30 @@ class RustDeskService:
                     }
             except Exception as e:
                 logger.debug("API file listing failed: %s", e)
+        # Try rustdesk++ fork CLI --list-dir (needs a peer ID)
+        if peer_id and self.rustdesk_path:
+            try:
+                result = await self.run_command(["--list-dir", peer_id, remote_path], timeout=30)
+                if result.get("success"):
+                    output = result.get("output", "")
+                    lines = output.splitlines() if isinstance(output, str) else []
+                    return {
+                        "success": True,
+                        "data": {"files": [ln for ln in lines if ln.strip()]},
+                        "method": "fork-cli",
+                        "note": "Fork rows carry name+size only (e.g. '[FILE] name 123b'); no mtime.",
+                    }
+                logger.debug("Fork --list-dir failed: %s", result.get("error", "unknown"))
+            except Exception as e:
+                logger.debug("Fork --list-dir exception: %s", e)
         return {
             "success": False,
-            "error": "Remote file listing requires RustDesk API server (pro version)",
+            "error": "Remote file listing needs RUSTDESK_API_URL or a fork peer_id (--list-dir)",
             "error_type": "not_implemented",
             "method": "none",
             "suggestions": [
                 "Configure RUSTDESK_API_URL to a RustDesk API server",
+                "Or pass peer_id with the rustdesk++ fork installed (uses --list-dir)",
                 "Use SSH/SFTP to browse remote files",
             ],
         }
@@ -1167,7 +1189,7 @@ class RustDeskService:
             return {
                 "success": True,
                 "data": {"latency_ms": 0, "bandwidth_mbps": 0},
-                "note": "Mock mode — no real metrics",
+                "note": "Mock mode - no real metrics",
             }
         # Use psutil for real network metrics
         try:

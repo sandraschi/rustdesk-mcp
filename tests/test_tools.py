@@ -270,7 +270,7 @@ class TestRustDeskTools:
         assert result["success"] is True
         assert result["files"][0]["name"] == "test.txt"
         assert result["count"] == 1
-        mock_service.list_remote_files.assert_called_once_with("/remote")
+        mock_service.list_remote_files.assert_called_once_with("/remote", None)
         mock_service.session_manager.update_session_status.assert_called_once()
 
     @pytest.mark.asyncio

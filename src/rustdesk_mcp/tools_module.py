@@ -302,18 +302,21 @@ class RustDeskTools:
             logger.exception(f"Failed to get connection quality: {e!s}")
             return {"success": False, "error": str(e)}
 
-    async def list_remote_files(self, remote_path: str = "/", session_id: str | None = None) -> dict[str, Any]:
+    async def list_remote_files(
+        self, remote_path: str = "/", session_id: str | None = None, peer_id: str | None = None
+    ) -> dict[str, Any]:
         """List files in a remote directory.
 
         Args:
             remote_path: Path on the remote system to list
             session_id: Optional session ID to associate with this request
+            peer_id: Optional RustDesk peer ID (enables fork --list-dir)
 
         Returns:
             dict: Directory listing with file information
         """
         try:
-            result = await self.rustdesk.list_remote_files(remote_path)
+            result = await self.rustdesk.list_remote_files(remote_path, peer_id)
 
             # Update session if we have a session ID
             if session_id and result.get("success"):
