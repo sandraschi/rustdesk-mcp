@@ -6,7 +6,7 @@
 [![Just](https://img.shields.io/badge/just-ready_to_go-7c5cfc?logo=just&logoColor=white)](https://github.com/casey/just)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-FastMCP 3.4+ server for RustDesk remote desktop management. 24 tools for device status, peer connections, file transfers, Wake-on-LAN, resource monitoring, session management, and local remote-input control. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp.
+FastMCP 3.4+ server for RustDesk remote desktop management. 25 tools for device status, peer connections, file transfers, folder sync with integrity checks, Wake-on-LAN, resource monitoring, session management, and local remote-input control. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp. Pairs with the `rustdesk++` fork (headless CLI) and a tailnet-only hbbs/hbbr relay — see [docs/TAILSCALE_RELAY.md](docs/TAILSCALE_RELAY.md).
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ cd rustdesk-mcp
 uv sync && uv run rustdesk-mcp
 ```
 
-## Tools (24)
+## Tools (25)
 
 All tools have SOTA docstrings with `Annotated[Field(description=...)]` parameters, `## Return Format`, and `## Examples`. Tools annotated with `READ_ONLY` or `MUTATING` annotations.
 
@@ -35,9 +35,9 @@ All tools have SOTA docstrings with `Annotated[Field(description=...)]` paramete
 | `get_address_book` | READ_ONLY | Saved peers from addrbook.toml |
 | `connect_to_peer` | MUTATING | Connect to remote machine by ID + password |
 | `disconnect_peer` | MUTATING | Disconnect specific session or all sessions |
-| `transfer_file` | MUTATING | Upload/download files (CLI + API fallback) |
-| `list_remote_files` | READ_ONLY | List remote directory files (API server required) |
-| `take_screenshot` | MUTATING | Capture screenshot (CLI v1.2.0+ or API) |
+| `transfer_file` | MUTATING | Upload/download files (fork CLI/API fallback) |
+| `list_remote_files` | READ_ONLY | List remote dir (API, or fork --list-dir with peer_id) |
+| `take_screenshot` | MUTATING | Capture screenshot (fork --screenshot or API) |
 | `start_recording` | MUTATING | Start recording (GUI-only, CLI unsupported) |
 | `stop_recording` | MUTATING | Stop recording |
 | `monitor_resources` | READ_ONLY | CPU/memory/disk/network sampling over time |
@@ -46,8 +46,9 @@ All tools have SOTA docstrings with `Annotated[Field(description=...)]` paramete
 | `add_address_book_entry` | MUTATING | Add a peer to addrbook.toml |
 | `update_address_book_entry` | MUTATING | Update a peer alias/note/tags |
 | `remove_address_book_entry` | MUTATING | Remove a peer from addrbook.toml |
-| `compare_folders` | READ_ONLY | Diff local dir vs. remote dir (size/mtime) |
-| `sync_folder` | MUTATING | Push/pull missing/newer files with dry-run preview |
+| `compare_folders` | READ_ONLY | Diff local vs. remote (excludes, recursive, size/mtime) |
+| `sync_folder` | MUTATING | Push/pull missing/newer/diverged files, dry-run, SHA-256 manifest |
+| `verify_file_integrity` | READ_ONLY | Local SHA-256 + remote size cross-check (no remote-hash primitive yet) |
 | `remote_click` | MUTATING | Click in the active RustDesk window (left/right/middle, double) |
 | `remote_type` | MUTATING | Type text into the active RustDesk window |
 | `send_remote_keys` | MUTATING | Send shortcut chord (ctrl+c, alt+F4, super+d) |
@@ -125,6 +126,8 @@ The server ships one skill (`remote-support`) stored at `src/rustdesk_mcp/skills
 | `RUSTDESK_API_URL` | (none) | Pro API server URL |
 | `RUSTDESK_API_USERNAME` | admin | API username |
 | `RUSTDESK_API_PASSWORD` | (none) | API password |
+| `RUSTDESK_CONTROL_ENABLED` | true | Master switch for remote_click/remote_type/send_remote_keys |
+| `RUSTDESK_CONTROL_MIN_INTERVAL` | 0.5 | Min seconds between remote input actions |
 | `MCP_TRANSPORT` | stdio | stdio or http |
 | `MCP_PORT` | 10805 | HTTP port |
 | `AI_PROVIDER` | ollama | LLM provider |
@@ -148,7 +151,33 @@ just build-native  # NSIS installer
 | Native | `native/target/release/bundle/nsis/*-setup.exe` | End-user desktop install |
 | MCPB | `mcpb pack . dist/rustdesk-mcp.mcpb` | Claude Desktop |
 
+## Relay: hbbs/hbbr on the tailnet
+
+Recommended topology: self-hosted hbbs/hbbr on Goliath, reachable **only
+over Tailscale** — no public RustDesk ports. Full setup, firewall rules,
+client settings, and troubleshooting: **[docs/TAILSCALE_RELAY.md](docs/TAILSCALE_RELAY.md)**.
+
+Notes that matter: Wake-on-LAN stays LAN-only (a home liaison must send the
+packet — the cafe cannot wake a sleeping Goliath), and bulk file moves are
+faster over direct tailnet paths (`git`/`scp` to `100.x` addresses) than
+through the RustDesk relay.
+
 ## RustDesk++ Headless CLI
+
+Fork: `sandraschi/rustdesk`, branch `rustdesk-pp`. Verified against source
+(not just the flag list) — what the MCP server actually relies on:
+
+- Real: `--send-file`, `--recv-file`, `--list-dir`, `--send-dir`,
+  `--create-dir`, `--delete-remote`, `--move-remote`, `--peer-info`,
+  `--restart`, `--shutdown`, `--screenshot`, `--broadcast-file`,
+  `--collect-files`, `--batch`, `--api-server`.
+- Stub: `POST /api/v1/exec` returns 501 by design (use send+recv in sequence).
+- Limits: `--list-dir` prints display strings (`[FILE] name 123b`, no mtime,
+  no hashes) — the MCP side parses these; there is **no remote-hash
+  primitive**, so `verify_file_integrity` cross-checks size, not digests.
+- No binary is checked in and none has been built on this machine yet
+  (`target/release/` absent) — build with `cargo build --release` before
+  the fork-backed tools can run for real.
 
 ### Info
 - `--status` — Local RustDesk ID, service status, rendezvous/relay servers

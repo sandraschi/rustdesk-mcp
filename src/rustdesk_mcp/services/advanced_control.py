@@ -57,9 +57,7 @@ class AdvancedControlService:
         rect = window.box
         return rect.left <= x <= rect.right and rect.top <= y <= rect.bottom
 
-    async def remote_click(
-        self, x: int, y: int, button: str = "left", double: bool = False
-    ) -> dict[str, Any]:
+    async def remote_click(self, x: int, y: int, button: str = "left", double: bool = False) -> dict[str, Any]:
         """Perform a safe mouse click in the RustDesk window."""
         button = button.lower()
         if button not in ("left", "right", "middle"):
