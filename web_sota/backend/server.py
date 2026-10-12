@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI
@@ -27,7 +28,7 @@ async def llm_providers():
     result = {}
     for name, url in [("ollama", "http://127.0.0.1:11434/api/tags"), ("lm_studio", "http://127.0.0.1:1234/v1/models")]:
         try:
-            r = httpx.get(url, timeout=3)
+            r = await asyncio.to_thread(httpx.get, url, timeout=3)
             if r.status_code == 200:
                 data = r.json()
                 if name == "ollama":
