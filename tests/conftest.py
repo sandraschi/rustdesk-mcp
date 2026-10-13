@@ -50,6 +50,11 @@ def mock_rustdesk_service(mock_config, mock_session_manager):
     service.config = mock_config
     service.session_manager = mock_session_manager
     service.is_running.return_value = True
+    # Instance attrs set in __init__ are invisible to spec(); pin the ones the
+    # FastAPI middleware and routes read so spec'd attribute access works.
+    service.mock_mode = False
+    service.config_dir = mock_config.rustdesk_config_dir
+    service.rustdesk_path = mock_config.rustdesk_path
 
     # Mock async methods
     service.get_status = AsyncMock(return_value={"is_running": True})
@@ -138,10 +143,11 @@ def mock_psutil():
         )
         mock_count.side_effect = lambda logical=True: 8 if logical else 4
 
-        # Mock process iteration for RustDesk detection
+        # Mock process iteration for RustDesk detection. Yield the process_iter
+        # mock itself so tests can control the visible process list.
         mock_proc.return_value = []
 
-        yield
+        yield mock_proc
 
 
 @pytest.fixture

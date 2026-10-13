@@ -84,14 +84,16 @@ class TestRustDeskTools:
     @pytest.mark.asyncio
     async def test_disconnect_peer_specific_session(self, tools, mock_service):
         """Test disconnecting a specific session."""
-        mock_service.session_manager.get_session.return_value = {"id": "session-123"}
+        mock_service.disconnect.return_value = {"success": True, "disconnected_sessions": ["session-123"]}
 
         result = await tools.disconnect_peer("session-123")
 
         assert result["success"] is True
         assert "session-123" in result["disconnected_sessions"]
         mock_service.disconnect.assert_called_once_with("session-123")
-        mock_service.session_manager.close_session.assert_called_once_with("session-123")
+        mock_service.session_manager.update_session_status.assert_called_once_with(
+            "session-123", "disconnected", disconnected_at=None
+        )
 
     @pytest.mark.asyncio
     async def test_disconnect_peer_all_sessions(self, tools, mock_service):
@@ -125,7 +127,7 @@ class TestRustDeskTools:
         assert result["local_path"] == "/local/test.txt"
         assert result["remote_path"] == "/remote/test.txt"
         mock_service.transfer_file.assert_called_once_with(
-            local_path="/local/test.txt", remote_path="/remote/test.txt", direction="upload"
+            local_path="/local/test.txt", remote_path="/remote/test.txt", direction="upload", peer_id=None
         )
         mock_service.session_manager.update_session_status.assert_called_once()
 

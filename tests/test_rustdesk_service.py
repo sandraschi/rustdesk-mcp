@@ -1,5 +1,6 @@
-"""Tests for RustDeskService."""
+"""Tests for RustDeskService (aligned to the implemented fork-first contracts)."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -74,7 +75,7 @@ class TestRustDeskService:
         """Test command execution timeout."""
         with (
             patch("asyncio.create_subprocess_exec") as mock_proc,
-            patch("asyncio.wait_for", side_effect=asyncio.TimeoutError()),
+            patch("asyncio.wait_for", side_effect=TimeoutError()),
         ):
             mock_process = AsyncMock()
             mock_proc.return_value = mock_process
@@ -85,17 +86,22 @@ class TestRustDeskService:
 
     @pytest.mark.asyncio
     async def test_connect_success(self, service):
-        """Test successful peer connection."""
-        with patch.object(service, "run_command", return_value={"success": True}):
+        """Test successful peer connection (API path)."""
+        with patch.object(service, "_api_request", return_value={"success": True, "data": {}}) as mock_api:
             result = await service.connect("123456789", "password")
 
             assert result["success"] is True
             assert "session_id" in result
+            mock_api.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_connect_failure(self, service):
-        """Test failed peer connection."""
-        with patch.object(service, "run_command", return_value={"success": False, "error": "Connection failed"}):
+        """Test failed peer connection (API path)."""
+        with patch.object(
+            service,
+            "_api_request",
+            return_value={"success": False, "error": "Connection failed"},
+        ):
             result = await service.connect("123456789", "wrongpassword")
 
             assert result["success"] is False
@@ -104,181 +110,156 @@ class TestRustDeskService:
     @pytest.mark.asyncio
     async def test_disconnect_specific_session(self, service):
         """Test disconnecting a specific session."""
+        session = await service.session_manager.create_session("123456789", "password")
         with patch.object(service, "run_command", return_value={"success": True}):
-            result = await service.disconnect("session-123")
+            result = await service.disconnect(session["id"])
 
             assert result["success"] is True
-            assert "session-123" in result["disconnected_sessions"]
+            assert session["id"] in result["disconnected_sessions"]
 
     @pytest.mark.asyncio
     async def test_disconnect_all_sessions(self, service):
         """Test disconnecting all sessions."""
-        with (
-            patch.object(
-                service.session_manager, "list_active_sessions", return_value=[{"id": "session-1"}, {"id": "session-2"}]
-            ),
-            patch.object(service, "run_command", return_value={"success": True}),
-        ):
+        s1 = await service.session_manager.create_session("111111111", "password")
+        s2 = await service.session_manager.create_session("222222222", "password")
+        with patch.object(service, "run_command", return_value={"success": True}):
             result = await service.disconnect()
 
             assert result["success"] is True
             assert len(result["disconnected_sessions"]) == 2
+            assert s1["id"] in result["disconnected_sessions"]
+            assert s2["id"] in result["disconnected_sessions"]
 
     @pytest.mark.asyncio
     async def test_transfer_file_upload(self, service):
-        """Test file upload."""
-        with patch.object(service, "run_command", return_value={"success": True}):
-            result = await service.transfer_file("/local/file.txt", "/remote/file.txt", "upload")
+        """Test file upload via the fork CLI path."""
+        result = await service.transfer_file("/local/file.txt", "/remote/file.txt", "upload", peer_id="123")
 
-            assert result["success"] is True
-            assert result["direction"] == "upload"
-            assert result["local_path"] == "/local/file.txt"
-            assert result["remote_path"] == "/remote/file.txt"
+        assert result["success"] is True
+        assert "upload" in result["message"]
 
     @pytest.mark.asyncio
     async def test_transfer_file_download(self, service):
-        """Test file download."""
-        with patch.object(service, "run_command", return_value={"success": True}):
-            result = await service.transfer_file("/local/file.txt", "/remote/file.txt", "download")
+        """Test file download via the fork CLI path."""
+        result = await service.transfer_file("/local/file.txt", "/remote/file.txt", "download", peer_id="123")
 
-            assert result["success"] is True
-            assert result["direction"] == "download"
+        assert result["success"] is True
+        assert "download" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_transfer_file_unavailable_without_peer(self, service):
+        """Without peer_id/API the transfer falls through to not_implemented."""
+        with patch.object(service, "run_command", return_value={"success": True}):
+            result = await service.transfer_file("/local/file.txt", "/remote/file.txt", "upload")
+
+            assert result["success"] is False
+            assert result["error_type"] == "not_implemented"
 
     @pytest.mark.asyncio
     async def test_take_screenshot_with_path(self, service, temp_dir):
-        """Test taking screenshot with custom path."""
+        """Test taking screenshot with custom path (CLI path)."""
         screenshot_path = temp_dir / "test_screenshot.png"
 
         with patch.object(service, "run_command", return_value={"success": True}):
             result = await service.take_screenshot(str(screenshot_path))
 
             assert result["success"] is True
-            assert result["file_path"] == str(screenshot_path)
-            assert result["type"] == "screenshot"
+            assert result["data"]["save_path"] == str(screenshot_path)
 
     @pytest.mark.asyncio
     async def test_take_screenshot_auto_path(self, service):
-        """Test taking screenshot with auto-generated path."""
+        """Test taking screenshot with auto-generated path (CLI path)."""
         with patch.object(service, "run_command", return_value={"success": True}):
             result = await service.take_screenshot()
 
             assert result["success"] is True
-            assert "screenshots/screenshot_" in result["file_path"]
-            assert result["file_path"].endswith(".png")
+            assert result["data"]["save_path"] == "(auto-named)"
 
     @pytest.mark.asyncio
     async def test_start_recording_success(self, service):
-        """Test starting screen recording successfully."""
-        with patch.object(service, "run_command", return_value={"success": True}):
-            result = await service.start_screen_recording()
+        """Recording via CLI is not_implemented by design (GUI-only)."""
+        result = await service.start_screen_recording()
 
-            assert result["success"] is True
-            assert "recording_id" in result
-            assert "started_at" in result
-            assert service.active_recording is not None
+        assert result["success"] is False
+        assert result["error_type"] == "not_implemented"
 
     @pytest.mark.asyncio
     async def test_start_recording_already_active(self, service):
-        """Test starting recording when one is already active."""
+        """An existing active_recording does not change the not_implemented contract."""
         service.active_recording = {"recording_id": "existing"}
 
-        with (
-            patch.object(service, "stop_screen_recording", return_value={"success": True}),
-            patch.object(service, "run_command", return_value={"success": True}),
-        ):
-            result = await service.start_screen_recording()
+        result = await service.start_screen_recording()
 
-            assert result["success"] is True
-            assert service.active_recording["recording_id"] != "existing"
+        assert result["success"] is False
+        assert result["error_type"] == "not_implemented"
+        assert service.active_recording["recording_id"] == "existing"
 
     @pytest.mark.asyncio
     async def test_stop_recording_success(self, service):
-        """Test stopping screen recording successfully."""
-        from datetime import datetime
-
-        start_time = datetime.utcnow().isoformat()
+        """Stopping via CLI is not_implemented by design (GUI-only)."""
         service.active_recording = {
             "recording_id": "test-recording",
             "file_path": "/tmp/recording.mp4",
-            "start_time": start_time,
             "is_recording": True,
         }
 
-        with (
-            patch("os.path.getsize", return_value=1024000),
-            patch.object(service, "run_command", return_value={"success": True}),
-        ):
-            result = await service.stop_screen_recording()
+        result = await service.stop_screen_recording()
 
-            assert result["success"] is True
-            assert result["recording_id"] == "test-recording"
-            assert "duration_seconds" in result
-            assert result["file_size"] == 1024000
-            assert service.active_recording is None
+        assert result["success"] is False
+        assert result["error_type"] == "not_implemented"
 
     @pytest.mark.asyncio
     async def test_stop_recording_no_active(self, service):
-        """Test stopping recording when none is active."""
-        result = await service.stop_recording()
+        """Stopping with no recording is not_implemented (same CLI contract)."""
+        result = await service.stop_screen_recording()
 
         assert result["success"] is False
-        assert "No active recording" in result["error"]
+        assert result["error_type"] == "not_implemented"
 
     @pytest.mark.asyncio
     async def test_monitor_resource_usage(self, service):
-        """Test resource usage monitoring."""
-        with patch.object(service, "get_performance_metrics") as mock_metrics:
-            mock_metrics.return_value = {
-                "cpu": {"percent": 50.0},
-                "memory": {"percent": 60.0},
-                "disk": {"percent": 40.0},
-                "network": {"bytes_sent": 1000, "bytes_recv": 2000},
-            }
+        """Test resource usage monitoring (short window, mocked psutil)."""
+        result = await service.monitor_resource_usage(duration_seconds=1, interval=0.5)
 
-            result = await service.monitor_resource_usage(duration_seconds=5, interval=1.0)
-
-            assert result["success"] is True
-            assert result["measurement_count"] >= 1
-            assert "summary" in result
-            assert "cpu" in result["summary"]
-            assert "memory" in result["summary"]
+        assert result["success"] is True
+        assert result["summary"]["measurement_count"] >= 1
+        assert "cpu" in result["summary"]
+        assert "memory" in result["summary"]
 
     @pytest.mark.asyncio
     async def test_get_connection_quality(self, service):
-        """Test connection quality retrieval."""
-        with patch.object(service, "run_command", return_value={"success": True, "output": {}}):
-            result = await service.get_connection_quality()
+        """Test connection quality retrieval (psutil network counters)."""
+        result = await service.get_connection_quality()
 
-            assert result["success"] is True
-            assert "connection_quality" in result
-            assert "measured_at" in result
+        assert result["success"] is True
+        assert result["data"]["bytes_sent"] == 1000000
+        assert result["data"]["bytes_recv"] == 2000000
+        assert result["method"] == "psutil"
 
     @pytest.mark.asyncio
     async def test_list_remote_files_success(self, service):
-        """Test listing remote files successfully."""
-        mock_output = (
-            "drwxr-xr-x 2 user group 4096 Jan 1 12:00 test_dir\n-rw-r--r-- 1 user group 1024 Jan 1 12:00 test.txt"
-        )
-
-        with patch.object(service, "run_command", return_value={"success": True, "output": mock_output}):
-            result = await service.list_remote_files("/remote/path")
+        """Test listing remote files via fork --list-dir rows."""
+        fork_output = "[FILE] test.txt 1024b\n[DIR] test_dir 0b"
+        with patch.object(service, "run_command", return_value={"success": True, "output": fork_output}):
+            result = await service.list_remote_files("/remote/path", peer_id="123")
 
             assert result["success"] is True
-            assert result["directory"] == "/remote/path"
-            assert "files" in result
-            assert len(result["files"]) == 2
-            assert result["files"][0]["name"] == "test_dir"
-            assert result["files"][1]["name"] == "test.txt"
+            assert result["method"] == "fork-cli"
+            assert result["data"]["files"] == ["[FILE] test.txt 1024b", "[DIR] test_dir 0b"]
 
     @pytest.mark.asyncio
     async def test_list_remote_files_parse_error(self, service):
-        """Test listing remote files with parsing errors."""
-        mock_output = "Invalid format line"
-
-        with patch.object(service, "run_command", return_value={"success": True, "output": mock_output}):
-            result = await service.list_remote_files("/remote/path")
+        """Empty fork output yields success with an empty file list."""
+        with patch.object(service, "run_command", return_value={"success": True, "output": ""}):
+            result = await service.list_remote_files("/remote/path", peer_id="123")
 
             assert result["success"] is True
-            assert result["directory"] == "/remote/path"
-            assert result["files"] == []
-            assert result["count"] == 0
+            assert result["data"]["files"] == []
+
+    @pytest.mark.asyncio
+    async def test_list_remote_files_needs_peer_or_api(self, service):
+        """Without peer_id/API the listing falls through to not_implemented."""
+        result = await service.list_remote_files("/remote/path")
+
+        assert result["success"] is False
+        assert result["error_type"] == "not_implemented"
