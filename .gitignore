@@ -22,8 +22,24 @@ wheels/
 
 # Virtual Environment
 venv/
+.venv/
 env/
 ENV/
+
+# Fleet assess reports (regenerable snapshots) + backup dross
+reports/
+*.bak
+*.bak.*
+!docs/assess-reports/
+
+# MCPB bundles (built artifacts)
+*.mcpb
+
+# Native / Tauri build dirs
+native/target/
+native/gen/
+src-tauri/target/
+src-tauri/binaries/
 
 # IDE
 .idea/

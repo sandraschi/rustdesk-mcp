@@ -9,10 +9,11 @@
   },
   "name": "rustdesk-mcp",
   "version": "0.1.0",
-  "description": "FastMCP 2.14.1 server for RustDesk remote desktop control and management",
+  "description": "FastMCP 3.4+ server for RustDesk remote desktop control and management",
   "author": "Sandra Schi",
   "license": "MIT",
   "categories": ["remote-desktop", "automation", "productivity"],
   "keywords": ["rustdesk", "remote-desktop", "mcp", "automation"]
+  }
 }
 

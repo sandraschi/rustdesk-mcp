@@ -36,7 +36,7 @@ audit-deps:
 # and ships a stale/missing resources/rustdesk-mcp-backend.exe (see TAURI_PRODUCTION_PITFALLS.md §H).
 build-native:
 	$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-	pwsh -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
+	powershell.exe -NoProfile -File '{{justfile_directory()}}\native\build.ps1'
 
 
 # Bootstrap: install dev deps + pre-commit hook
