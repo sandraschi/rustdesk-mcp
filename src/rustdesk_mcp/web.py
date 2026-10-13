@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from .ai import ai_router
 from .auth import authenticate
 
+logger = logging.getLogger(__name__)
 _START_TIME = time.time()
 
 
@@ -21,7 +23,7 @@ async def check_fork_api() -> dict:
                 if r.status == 200:
                     return {"available": True, "status": "ok"}
     except Exception:
-        pass
+        logger.debug("Fork API health probe unreachable", exc_info=True)
     return {"available": False, "status": "unreachable"}
 
 
@@ -41,7 +43,7 @@ def setup_webapp(app: FastAPI, mcp_app=None):
 
     static_dir = Path(__file__).parent.parent.parent / "web_sota" / "dist"
 
-    # API routes — register BEFORE StaticFiles mount
+    # API routes - register BEFORE StaticFiles mount
     @app.get("/api/tools", dependencies=[Depends(authenticate)])
     async def list_tools():
         if not mcp_app:
@@ -164,7 +166,45 @@ def setup_webapp(app: FastAPI, mcp_app=None):
             "hbbs_running": hbbs,
         }
 
-    # Static files — catch-all SPA handler (AFTER all API routes)
+    @app.get("/api/v1/diagnostics")
+    async def diagnostics():
+        """Full diagnostics for CUA-NSIS smoke testing: tools, system, errors."""
+        import platform
+
+        tool_names: list[str] = []
+        if mcp_app:
+            try:
+                tool_names = [t.name for t in await mcp_app.list_tools()]
+            except Exception:
+                logger.debug("diagnostics list_tools failed", exc_info=True)
+        return {
+            "status": "ok",
+            "server": "rustdesk-mcp",
+            "version": "0.1.0",
+            "uptime_seconds": int(time.time() - _START_TIME),
+            "tool_count": len(tool_names),
+            "tools": tool_names,
+            "system": {"platform": platform.platform(), "python": platform.python_version()},
+            "errors": [],
+        }
+
+    @app.post("/api/shutdown")
+    async def api_shutdown():
+        """Orderly exit for the fleet launcher: 200 now, process exit ~500 ms later."""
+        import threading
+
+        def _exit():
+            import time as _t
+
+            _t.sleep(0.5)
+            import os as _os
+
+            _os._exit(0)
+
+        threading.Thread(target=_exit, daemon=True).start()
+        return {"status": "shutting_down"}
+
+    # Static files - catch-all SPA handler (AFTER all API routes)
     if static_dir.exists():
 
         @app.get("/{full_path:path}", include_in_schema=False)

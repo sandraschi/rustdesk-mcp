@@ -1,5 +1,5 @@
 """
-RustDeskMCP - FastMCP 2.14.1 Server for RustDesk Remote Desktop Management
+RustDeskMCP - FastMCP 3.4+ Server for RustDesk Remote Desktop Management
 
 Provides natural language interface for RustDesk operations through FastMCP protocol.
 """
@@ -1080,6 +1080,37 @@ async def register_tools():
             return _error_response("Control service not initialized", "not_initialized")
         return await advanced_control.send_remote_keys(keys)
 
+    @mcp.tool(annotations=_MUTATING)
+    async def rustdesk_shutdown(
+        confirm: Annotated[
+            bool, Field(description="Must be true — acknowledges the server process will exit.")
+        ] = False,
+    ) -> dict[str, Any]:
+        """Gracefully shut down the RustDesk MCP server process.
+
+        Responds immediately, then exits ~500 ms later so in-flight responses
+        flush (same contract as POST /api/shutdown, used by the fleet launcher
+        before NSSM restarts).
+
+        ## Return Format
+        {"success": bool, "message": str}
+
+        ## Examples
+        await rustdesk_shutdown(confirm=True)
+        """
+        if not confirm:
+            return {"success": False, "message": "Pass confirm=True to shut down."}
+        import threading
+
+        def _exit():
+            import time as _t
+
+            _t.sleep(0.5)
+            os._exit(0)
+
+        threading.Thread(target=_exit, daemon=True).start()
+        return {"success": True, "message": "rustdesk-mcp shutting down in ~500 ms"}
+
 
 # Exception handlers and route registrations
 app.include_router(api_v1_router)
@@ -1129,7 +1160,7 @@ def main():
     # opens the port the webview polls.
     if os.getenv("MCP_TRANSPORT") == "http" or "--http" in sys.argv or os.getenv("RUSTDESK_MCP_TAURI") == "1":
         port = int(os.getenv("PORT") or os.getenv("MCP_PORT") or "10805")
-        print(f"Starting Remote Desktop Web Bridge on port {port}...")
+        logger.info("Starting Remote Desktop Web Bridge on port %s...", port)
         import uvicorn
 
         uvicorn.run(web_app, host="0.0.0.0", port=port)

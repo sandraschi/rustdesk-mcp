@@ -513,6 +513,7 @@ class RustDeskService:
                         used_file = addr_file
                         break
                     except Exception:
+                        logger.debug("Skipping unreadable address book file %s", addr_file, exc_info=True)
                         continue
 
             if data is None:
@@ -970,7 +971,7 @@ class RustDeskService:
                                 "data": data,
                             }
         except (TimeoutError, aiohttp.ClientError, Exception):
-            pass
+            logger.debug("Fork API upload probe failed, falling back to CLI", exc_info=True)
 
         # Try fork CLI --send-file / --recv-file (20s timeout, not 120)
         rustdesk_exe = str(self.rustdesk_path) if self.rustdesk_path else ""

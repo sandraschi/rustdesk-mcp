@@ -33,10 +33,22 @@ logger = logging.getLogger("rustdesk-web-bridge")
 
 app = FastAPI(title="RustDesk MCP Web Bridge")
 
-# Enable CORS for the webapp
+# Enable CORS for the webapp (fleet standard: explicit origins + tailnet regex,
+# mirrors server.py — never "*" with allow_credentials).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify the actual origin
+    allow_origins=[
+        "http://localhost:10804",
+        "http://127.0.0.1:10804",
+        "tauri://localhost",
+        "http://tauri.localhost",
+        "https://tauri.localhost",
+    ],
+    allow_origin_regex=(
+        r"https?://(?:[a-zA-Z0-9-]+\.ts\.net|.*?\.tail-[a-f0-9]+\.ts\.net|"
+        r"tauri\.localhost|localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|100\.\d{1,3}\.\d{1,3}\.\d{1,3})(?::\d+)?$|^tauri://localhost$"
+    ),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
