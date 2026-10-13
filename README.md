@@ -6,7 +6,7 @@
 [![Just](https://img.shields.io/badge/just-ready_to_go-7c5cfc?logo=just&logoColor=white)](https://github.com/casey/just)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-FastMCP 3.4+ server for RustDesk remote desktop management. 25 tools for device status, peer connections, file transfers, folder sync with integrity checks, Wake-on-LAN, resource monitoring, session management, and local remote-input control. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp. Pairs with the `rustdesk++` fork (headless CLI) and a tailnet-only hbbs/hbbr relay — see [docs/TAILSCALE_RELAY.md](docs/TAILSCALE_RELAY.md).
+FastMCP 3.4+ server for RustDesk remote desktop management. 26 tools for device status, peer connections, file transfers, folder sync with integrity checks, Wake-on-LAN, resource monitoring, session management, local remote-input control, and graceful shutdown. Dual transport (stdio + HTTP), Tauri 2.0 NSIS desktop app, and React webapp. Pairs with the `rustdesk++` fork (headless CLI) and a tailnet-only hbbs/hbbr relay — see [docs/TAILSCALE_RELAY.md](docs/TAILSCALE_RELAY.md).
 
 ## Quick Start
 
@@ -21,7 +21,7 @@ cd rustdesk-mcp
 uv sync && uv run rustdesk-mcp
 ```
 
-## Tools (25)
+## Tools (26)
 
 All tools have SOTA docstrings with `Annotated[Field(description=...)]` parameters, `## Return Format`, and `## Examples`. Tools annotated with `READ_ONLY` or `MUTATING` annotations.
 
@@ -52,6 +52,7 @@ All tools have SOTA docstrings with `Annotated[Field(description=...)]` paramete
 | `remote_click` | MUTATING | Click in the active RustDesk window (left/right/middle, double) |
 | `remote_type` | MUTATING | Type text into the active RustDesk window |
 | `send_remote_keys` | MUTATING | Send shortcut chord (ctrl+c, alt+F4, super+d) |
+| `rustdesk_shutdown` | MUTATING | Graceful self-termination (confirm=True) |
 
 ## Architecture
 

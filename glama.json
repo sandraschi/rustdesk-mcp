@@ -5,8 +5,8 @@
   "description": "RustDesk remote desktop control and management. Screen sharing, file transfer, remote monitoring, and session management tools.",
   "type": "mcp_server",
   "status": "beta",
-  "framework": "FastMCP 2.13+",
-  "tools": 9,
+  "framework": "FastMCP 3.4+",
+  "tools": 26,
   "transport": ["stdio", "http"],
   "keywords": [
     "rustdesk",

@@ -1,5 +1,31 @@
 # Changelog
 
+## Unreleased (assfix 2026-10-13)
+
+### Security
+- **CRITICAL: legacy CORS wildcard closed** — `web_bridge.py` allowed `*` with
+  credentials; now mirrors `server.py` (explicit origins + tailnet regex).
+- **Transport no longer drops CORS** — `transport.py` HTTP mode serves
+  `mcp.http_app()` via uvicorn instead of `run_http_async()`.
+
+### New tools/endpoints
+- **`rustdesk_shutdown`** (MUTATING) + `POST /api/shutdown` — graceful
+  self-termination for the fleet launcher (200 now, exit ~500 ms later).
+- **`GET /api/v1/diagnostics`** — tool list, system info, errors (CUA-NSIS smoke).
+
+### Fixes
+- Ruff `S110`/`S112` unsilenced; 3 silent swallows now log (addrbook parse,
+  fork-API probe, fork health probe). `T20` enforced with CLI/test ignores.
+- Webapp uses same-origin `/api` (absolute backend URL only behind Tauri gate).
+- `glama.json`/`manifest.json`/`llms-full.txt` refreshed to 26 tools, FastMCP 3.4+.
+- CI rebuilt: push/PR triggers, uv, ruff check+format, pyright, pytest (strict),
+  bun biome+typecheck job. `package-lock.json` removed (bun standard).
+- MCPB `user.md` padded past 4000 words (new §15: sync/input/shutdown).
+
+### Known-open (deferred)
+- 39/88 pytest failures from fixture rot (dedicated repair pass needed).
+- 108 pre-existing pyright errors (prefab API drift, legacy bridge calls).
+
 ## 0.2.0 (2026-07-10)
 
 ### New Features

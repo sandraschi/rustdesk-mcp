@@ -2,7 +2,7 @@
 
 ## Overview
 
-RustDesk MCP provides remote desktop management through the MCP protocol. It wraps the RustDesk CLI, socket client, and REST API into a unified tool surface for AI agents. 16 tools cover device status, peer connections, address book management, file transfers, screenshots, recording, resource monitoring, and Wake-on-LAN.
+RustDesk MCP provides remote desktop management through the MCP protocol. It wraps the RustDesk CLI, socket client, and REST API into a unified tool surface for AI agents. 26 tools cover device status, peer connections, address book management, file transfers, folder sync with integrity checks, screenshots, recording, resource monitoring, Wake-on-LAN, remote input control, and server shutdown.
 
 ## Architecture
 
@@ -77,6 +77,36 @@ Dual transport: stdio (Claude Desktop, opencode) or HTTP (Tauri desktop, webapp)
 | Tool | Annotations | Description |
 |------|------------|-------------|
 | wake_on_lan | MUTATING | Send magic packet to wake sleeping machine on LAN |
+
+### Address book
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| add_address_book_entry | MUTATING | Add a peer to addrbook.toml |
+| update_address_book_entry | MUTATING | Update a peer alias/note/tags |
+| remove_address_book_entry | MUTATING | Remove a peer from addrbook.toml |
+
+### Folder sync
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| compare_folders | READ_ONLY | Diff local vs remote (excludes, recursive, size/mtime) |
+| sync_folder | MUTATING | Push/pull missing/newer/diverged files, dry-run, SHA-256 manifest |
+| verify_file_integrity | READ_ONLY | Local SHA-256 + remote size cross-check |
+
+### Remote input
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| remote_click | MUTATING | Click in the active RustDesk window |
+| remote_type | MUTATING | Type text into the active RustDesk window |
+| send_remote_keys | MUTATING | Send shortcut chord (ctrl+c, alt+F4, super+d) |
+
+### Server
+
+| Tool | Annotations | Description |
+|------|------------|-------------|
+| rustdesk_shutdown | MUTATING | Graceful self-termination (confirm=True), mirrors POST /api/shutdown |
 
 ## Environment Variables
 
