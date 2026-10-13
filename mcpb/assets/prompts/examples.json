@@ -1,0 +1,731 @@
+[
+  {
+    "tool": "get_rustdesk_status",
+    "arguments": {},
+    "description": "Check primary service status: running state, connection count, mock mode"
+  },
+  {
+    "tool": "get_rustdesk_status",
+    "arguments": {},
+    "description": "Get version and mock mode indicator before any connection attempt"
+  },
+  {
+    "tool": "get_rustdesk_status",
+    "arguments": {},
+    "description": "Quick health probe to confirm RustDesk is installed and running"
+  },
+  {
+    "tool": "get_rustdesk_status",
+    "arguments": {},
+    "description": "Check connection count before initiating a new session"
+  },
+  {
+    "tool": "get_detailed_rustdesk_status",
+    "arguments": {},
+    "description": "Full status: local ID, sessions, address book, network, performance"
+  },
+  {
+    "tool": "get_detailed_rustdesk_status",
+    "arguments": {},
+    "description": "Comprehensive health check including local ID and active sessions"
+  },
+  {
+    "tool": "get_detailed_rustdesk_status",
+    "arguments": {},
+    "description": "Retrieve network config and performance metrics alongside service status"
+  },
+  {
+    "tool": "get_detailed_rustdesk_status",
+    "arguments": {},
+    "description": "Pre-connection audit: verify local ID and check for existing sessions"
+  },
+  {
+    "tool": "check_rustdesk_installation",
+    "arguments": {},
+    "description": "Verify RustDesk executable exists and service is running"
+  },
+  {
+    "tool": "check_rustdesk_installation",
+    "arguments": {},
+    "description": "Get executable path and config directory for validation"
+  },
+  {
+    "tool": "check_rustdesk_installation",
+    "arguments": {},
+    "description": "Check if mock mode is active due to missing RustDesk installation"
+  },
+  {
+    "tool": "check_rustdesk_installation",
+    "arguments": {},
+    "description": "Verify installation before attempting peer connection"
+  },
+  {
+    "tool": "get_rustdesk_id",
+    "arguments": {},
+    "description": "Get local RustDesk ID to share with someone who needs to connect"
+  },
+  {
+    "tool": "get_rustdesk_id",
+    "arguments": {},
+    "description": "Retrieve 9-10 digit ID for incoming connection configuration"
+  },
+  {
+    "tool": "get_rustdesk_id",
+    "arguments": {},
+    "description": "Check if local ID is valid and network is reachable"
+  },
+  {
+    "tool": "list_active_sessions",
+    "arguments": {},
+    "description": "List all active remote desktop sessions via network scan and log parsing"
+  },
+  {
+    "tool": "list_active_sessions",
+    "arguments": {},
+    "description": "Check for existing connections before starting a new one"
+  },
+  {
+    "tool": "list_active_sessions",
+    "arguments": {},
+    "description": "Audit all tracked, network-detected, and log-detected sessions"
+  },
+  {
+    "tool": "list_active_sessions",
+    "arguments": {},
+    "description": "List sessions with connection types: tracked, network_detected, log_detected"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "123456789",
+      "password": "mypassword"
+    },
+    "description": "Establish remote desktop connection to a peer with ID and password"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "987654321",
+      "password": "securepass",
+      "session_id": "office-pc-morning"
+    },
+    "description": "Connect with custom session label for tracking"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "111222333",
+      "password": "admin123",
+      "session_id": "server-maintenance"
+    },
+    "description": "Connect for maintenance work with a descriptive session tag"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "444555666",
+      "password": "temp1234",
+      "session_id": "urgent-support"
+    },
+    "description": "Emergency support connection for an urgent issue"
+  },
+  {
+    "tool": "disconnect_peer",
+    "arguments": {},
+    "description": "Disconnect all active sessions immediately"
+  },
+  {
+    "tool": "disconnect_peer",
+    "arguments": {
+      "session_id": "office-pc-morning"
+    },
+    "description": "Disconnect a specific session by custom session ID"
+  },
+  {
+    "tool": "disconnect_peer",
+    "arguments": {
+      "session_id": "server-maintenance"
+    },
+    "description": "End a specific maintenance connection"
+  },
+  {
+    "tool": "disconnect_peer",
+    "arguments": {},
+    "description": "Clean up all tracked sessions after finishing remote work"
+  },
+  {
+    "tool": "get_address_book",
+    "arguments": {},
+    "description": "Retrieve all saved peer connections with aliases and tags"
+  },
+  {
+    "tool": "get_address_book",
+    "arguments": {},
+    "description": "List address book entries before connecting to a known peer"
+  },
+  {
+    "tool": "get_address_book",
+    "arguments": {},
+    "description": "Browse saved peers to find a specific machine's RustDesk ID"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "123456789",
+      "alias": "Office Workstation"
+    },
+    "description": "Save a peer with a basic human-readable alias"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "987654321",
+      "alias": "Home Server",
+      "note": "Ubuntu 24.04 in living room",
+      "tags": ["linux", "server", "home"]
+    },
+    "description": "Save a peer with full metadata: alias, note, and tags"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "555666777",
+      "alias": "NAS Backup",
+      "tags": ["linux", "nas"]
+    },
+    "description": "Add a NAS with alias and categorization tags"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "999888777",
+      "alias": "Remote Colleague PC",
+      "note": "For Friday standup support",
+      "tags": ["windows", "work", "colleague"]
+    },
+    "description": "Add a colleague's machine with detailed note and tags"
+  },
+  {
+    "tool": "update_address_book_entry",
+    "arguments": {
+      "peer_id": "123456789",
+      "alias": "New Office Workstation"
+    },
+    "description": "Update only the alias of an address book entry"
+  },
+  {
+    "tool": "update_address_book_entry",
+    "arguments": {
+      "peer_id": "123456789",
+      "note": "Moved to 3rd floor, new IP scope"
+    },
+    "description": "Update only the note, keeping existing alias and tags"
+  },
+  {
+    "tool": "update_address_book_entry",
+    "arguments": {
+      "peer_id": "987654321",
+      "alias": "Home Server Updated",
+      "tags": ["linux", "server", "backup"]
+    },
+    "description": "Update alias and tags while preserving the note"
+  },
+  {
+    "tool": "update_address_book_entry",
+    "arguments": {
+      "peer_id": "555666777",
+      "tags": ["linux", "nas", "important"]
+    },
+    "description": "Add a tag to a peer entry"
+  },
+  {
+    "tool": "remove_address_book_entry",
+    "arguments": {
+      "peer_id": "123456789"
+    },
+    "description": "Remove a peer entry from the address book by ID"
+  },
+  {
+    "tool": "remove_address_book_entry",
+    "arguments": {
+      "peer_id": "999888777"
+    },
+    "description": "Delete a colleague's entry after no longer needed"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "/home/user/docs/report.pdf",
+      "remote_path": "/home/remote/Desktop/",
+      "direction": "upload",
+      "peer_id": "123456789"
+    },
+    "description": "Upload a PDF report to the remote machine"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "C:\\Users\\me\\downloads",
+      "remote_path": "C:\\Users\\remote\\Desktop\\backup.zip",
+      "direction": "download",
+      "peer_id": "123456789"
+    },
+    "description": "Download a backup file from the remote machine"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "./config.yaml",
+      "remote_path": "/etc/app/config.yaml",
+      "direction": "upload",
+      "session_id": "server-maintenance",
+      "peer_id": "444555666"
+    },
+    "description": "Upload config file during a tracked maintenance session"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "C:\\logs\\app_debug.log",
+      "remote_path": "/var/log/app/",
+      "direction": "upload",
+      "peer_id": "111222333"
+    },
+    "description": "Upload a debug log file to the remote machine for analysis"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "/tmp/screenshot_001.png",
+      "remote_path": "C:\\evidence\\screenshot.png",
+      "direction": "download",
+      "peer_id": "987654321"
+    },
+    "description": "Download a screenshot from the remote machine"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "C:\\deploy\\app_v2.exe",
+      "remote_path": "C:\\Program Files\\App\\",
+      "direction": "upload",
+      "peer_id": "555666777"
+    },
+    "description": "Upload an application installer to the remote machine"
+  },
+  {
+    "tool": "list_remote_files",
+    "arguments": {
+      "remote_path": "/home/user/documents"
+    },
+    "description": "List files in a remote directory via API server"
+  },
+  {
+    "tool": "list_remote_files",
+    "arguments": {
+      "remote_path": "C:\\Users\\remote\\Desktop"
+    },
+    "description": "List contents of a remote Windows desktop directory"
+  },
+  {
+    "tool": "list_remote_files",
+    "arguments": {
+      "remote_path": "/etc/nginx/sites-enabled"
+    },
+    "description": "List Nginx configuration files on the remote server"
+  },
+  {
+    "tool": "compare_folders",
+    "arguments": {
+      "local_dir": "/project/src",
+      "remote_dir": "/home/remote/project/src"
+    },
+    "description": "Compare local and remote directories before syncing"
+  },
+  {
+    "tool": "compare_folders",
+    "arguments": {
+      "local_dir": "./configs",
+      "remote_dir": "/etc/configs",
+      "session_id": "sess_123"
+    },
+    "description": "Compare config directories within a session context"
+  },
+  {
+    "tool": "compare_folders",
+    "arguments": {
+      "local_dir": "C:\\Users\\me\\data",
+      "remote_dir": "C:\\Users\\remote\\data"
+    },
+    "description": "Compare Windows directories between local and remote"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "./configs",
+      "remote_dir": "/etc/configs",
+      "direction": "to_remote",
+      "dry_run": true,
+      "peer_id": "123456789"
+    },
+    "description": "Preview push of local configs to remote (dry run)"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "./data",
+      "remote_dir": "/home/remote/data",
+      "direction": "to_remote",
+      "dry_run": false,
+      "peer_id": "123456789"
+    },
+    "description": "Execute push of local data directory to remote"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "C:\\backup",
+      "remote_dir": "D:\\remote_backup",
+      "direction": "to_local",
+      "dry_run": true,
+      "peer_id": "987654321"
+    },
+    "description": "Preview pull of remote backup files to local"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "C:\\project",
+      "remote_dir": "C:\\Users\\remote\\project",
+      "direction": "to_remote",
+      "dry_run": false,
+      "peer_id": "555666777"
+    },
+    "description": "Sync local project directory to remote machine"
+  },
+  {
+    "tool": "take_screenshot",
+    "arguments": {},
+    "description": "Capture remote desktop screenshot with auto-named file"
+  },
+  {
+    "tool": "take_screenshot",
+    "arguments": {
+      "save_path": "C:\\screenshots\\error_state.png"
+    },
+    "description": "Capture screenshot with a specific save path"
+  },
+  {
+    "tool": "take_screenshot",
+    "arguments": {
+      "save_path": "/home/user/evidence/bug.png",
+      "session_id": "debug-session-1"
+    },
+    "description": "Capture screenshot during a tracked debug session"
+  },
+  {
+    "tool": "take_screenshot",
+    "arguments": {
+      "save_path": "C:\\logs\\dashboard_status.png"
+    },
+    "description": "Take screenshot of a dashboard for documentation"
+  },
+  {
+    "tool": "start_recording",
+    "arguments": {},
+    "description": "Attempt to start screen recording (CLI limitation — returns suggestions)"
+  },
+  {
+    "tool": "start_recording",
+    "arguments": {
+      "save_path": "C:\\recordings\\demo.mp4",
+      "session_id": "demo-session"
+    },
+    "description": "Attempt to start recording with save path and session tracking"
+  },
+  {
+    "tool": "stop_recording",
+    "arguments": {},
+    "description": "Attempt to stop screen recording (returns GUI-based suggestions)"
+  },
+  {
+    "tool": "stop_recording",
+    "arguments": {
+      "session_id": "demo-session"
+    },
+    "description": "Stop recording within a session context"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 10,
+      "interval": 5.0
+    },
+    "description": "Quick 10-second resource sample (2 measurements)"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 120,
+      "interval": 10.0
+    },
+    "description": "Two-minute monitoring with 10-second intervals (12 samples)"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 300,
+      "interval": 5.0
+    },
+    "description": "Five-minute monitoring with 5-second intervals (60 samples)"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 30,
+      "interval": 2.0,
+      "session_id": "perf-check"
+    },
+    "description": "Quick 30-second performance check during a tracked session"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 3600,
+      "interval": 60.0
+    },
+    "description": "Hour-long monitoring with 1-minute intervals (capped at 3600s)"
+  },
+  {
+    "tool": "get_connection_quality",
+    "arguments": {},
+    "description": "Get system network I/O counters: bytes, packets, errors, drops"
+  },
+  {
+    "tool": "get_connection_quality",
+    "arguments": {
+      "session_id": "office-pc-morning"
+    },
+    "description": "Check network quality during an active session"
+  },
+  {
+    "tool": "get_connection_quality",
+    "arguments": {},
+    "description": "Diagnose network issues with error and drop counts"
+  },
+  {
+    "tool": "get_connection_quality",
+    "arguments": {},
+    "description": "Measure total bytes sent/received on all network interfaces"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "aa:bb:cc:dd:ee:ff"
+    },
+    "description": "Wake a machine on the local subnet (limited broadcast, port 9)"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "AA-BB-CC-DD-EE-FF",
+      "broadcast_ip": "192.168.1.255",
+      "hostname": "goliath"
+    },
+    "description": "Wake machine with specific subnet broadcast and hostname label"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "aabb.ccdd.eeff",
+      "port": 7
+    },
+    "description": "Wake machine using port 7 (echo) instead of default port 9"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "aa:bb:cc:dd:ee:ff",
+      "broadcast_ip": "10.0.1.255",
+      "port": 9,
+      "hostname": "backup-server"
+    },
+    "description": "Wake a backup server on a different subnet (10.x)"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "11:22:33:44:55:66",
+      "hostname": "dev-box"
+    },
+    "description": "Wake a development machine on the local subnet with hostname"
+  },
+  {
+    "tool": "show_rustdesk_status_card",
+    "arguments": {},
+    "description": "Display RustDesk service status as a rich Prefab card in chat"
+  },
+  {
+    "tool": "show_active_sessions_card",
+    "arguments": {},
+    "description": "Display active sessions as a rich Prefab card with connection details"
+  },
+  {
+    "tool": "show_address_book_card",
+    "arguments": {},
+    "description": "Display address book entries as a rich Prefab card"
+  },
+  {
+    "tool": "show_installation_card",
+    "arguments": {},
+    "description": "Display installation check as a rich Prefab card with badges"
+  },
+  {
+    "tool": "get_rustdesk_status",
+    "arguments": {},
+    "description": "Confirm mock mode status for development/demo environments"
+  },
+  {
+    "tool": "get_detailed_rustdesk_status",
+    "arguments": {},
+    "description": "Combine local ID, session count, network info, and performance in one call"
+  },
+  {
+    "tool": "check_rustdesk_installation",
+    "arguments": {},
+    "description": "Check whether the RustDesk config directory is accessible"
+  },
+  {
+    "tool": "get_rustdesk_id",
+    "arguments": {},
+    "description": "Verify the local RustDesk ID is a valid 9-10 digit number"
+  },
+  {
+    "tool": "list_active_sessions",
+    "arguments": {},
+    "description": "Scan active sessions before disconnecting all to avoid interrupting work"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "777888999",
+      "password": "nightly-batch",
+      "session_id": "automated-backup"
+    },
+    "description": "Connect for an automated backup run with tracking session"
+  },
+  {
+    "tool": "connect_to_peer",
+    "arguments": {
+      "peer_id": "123456789",
+      "password": "temp-access"
+    },
+    "description": "One-time connection without session tracking (no session_id)"
+  },
+  {
+    "tool": "disconnect_peer",
+    "arguments": {
+      "session_id": "urgent-support"
+    },
+    "description": "Disconnect a specific urgent support session after resolution"
+  },
+  {
+    "tool": "get_address_book",
+    "arguments": {},
+    "description": "Browse address book for a peer's RustDesk ID before connecting"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "333444555",
+      "alias": "Data Center Host 1",
+      "tags": ["linux", "datacenter", "production"]
+    },
+    "description": "Add a production server to the address book with datacenter tags"
+  },
+  {
+    "tool": "add_address_book_entry",
+    "arguments": {
+      "peer_id": "666777888",
+      "alias": "Test VM",
+      "note": "vSphere VM running Ubuntu Test environment",
+      "tags": ["linux", "test", "vm"]
+    },
+    "description": "Add a test VM with environment details"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "/opt/deploy",
+      "remote_dir": "/srv/app",
+      "direction": "to_remote",
+      "dry_run": true,
+      "peer_id": "123456789"
+    },
+    "description": "Preview deployment sync before pushing to production"
+  },
+  {
+    "tool": "sync_folder",
+    "arguments": {
+      "local_dir": "C:\\logs\\archive",
+      "remote_dir": "/var/log/archive",
+      "direction": "to_remote",
+      "dry_run": false,
+      "peer_id": "987654321"
+    },
+    "description": "Upload archived log files to a central remote server"
+  },
+  {
+    "tool": "take_screenshot",
+    "arguments": {
+      "save_path": "/tmp/error_screen.png",
+      "session_id": "debug-connect-001"
+    },
+    "description": "Capture error state screenshot during a connection troubleshooting session"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 60,
+      "interval": 5.0
+    },
+    "description": "One-minute monitoring with 5-second intervals (12 samples)"
+  },
+  {
+    "tool": "monitor_resources",
+    "arguments": {
+      "duration_seconds": 600,
+      "interval": 30.0,
+      "session_id": "long-running-job"
+    },
+    "description": "Ten-minute monitoring with 30-second intervals during a long task"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "00:11:22:33:44:55",
+      "broadcast_ip": "192.168.0.255",
+      "port": 9,
+      "hostname": "render-node"
+    },
+    "description": "Wake a render farm node before submitting rendering jobs"
+  },
+  {
+    "tool": "wake_on_lan",
+    "arguments": {
+      "mac_address": "de:ad:be:ef:00:01",
+      "hostname": "nas-storage"
+    },
+    "description": "Wake a NAS storage device before scheduled backup"
+  },
+  {
+    "tool": "transfer_file",
+    "arguments": {
+      "local_path": "C:\\Users\\tech\\tools\\diagnostic.exe",
+      "remote_path": "C:\\Windows\\Temp\\",
+      "direction": "upload",
+      "peer_id": "111222333"
+    },
+    "description": "Upload a diagnostic tool to the remote machine for troubleshooting"
+  }
+]
