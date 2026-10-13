@@ -59,7 +59,10 @@ const EXAMPLE_PROMPTS = [
 	},
 ];
 
-const API_URL = "http://127.0.0.1:10805";
+const inTauriChat =
+  typeof window !== "undefined" &&
+  ("__TAURI__" in window || "__TAURI_INTERNALS__" in window);
+const API_URL = inTauriChat ? "http://127.0.0.1:10805" : "";
 
 async function fetchSkills(): Promise<string | null> {
 	try {
