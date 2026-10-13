@@ -8,6 +8,7 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -103,7 +104,11 @@ class RustDeskService:
         if requires_auth and not await self._ensure_authenticated():
             return {"success": False, "error": "Authentication failed", "status": 401}
 
+        if not self.api_url:
+            return {"success": False, "error": "RUSTDESK_API_URL not configured", "status": 400}
+
         await self._ensure_http_session()
+        assert self.http_session is not None
 
         url = f"{self.api_url.rstrip('/')}/{endpoint.lstrip('/')}"
         headers = {"Content-Type": "application/json"}
@@ -167,6 +172,10 @@ class RustDeskService:
             return True
 
         await self._ensure_http_session()
+        assert self.http_session is not None
+        if not self.api_url:
+            logger.error("Login failed: RUSTDESK_API_URL not configured")
+            return False
 
         login_data = {
             "username": self.api_username,
@@ -220,7 +229,7 @@ class RustDeskService:
         if self.http_session and not self.http_session.closed:
             await self.http_session.close()
 
-    async def run_command(self, args: list[str | Path], timeout: int = 30) -> dict[str, Any]:
+    async def run_command(self, args: Sequence[str | Path], timeout: int = 30) -> dict[str, Any]:
         """Run a RustDesk command with error handling.
 
         Args:
@@ -777,6 +786,8 @@ class RustDeskService:
         config = await self.get_config()
         config.update(updates)
 
+        if not self.config_dir:
+            return {"success": False, "error": "Config directory not available"}
         config_file = self.config_dir / "config"
         with open(config_file, "w") as f:
             json.dump(config, f, indent=2)
@@ -859,15 +870,15 @@ class RustDeskService:
                 # Disconnect all active sessions
                 active_sessions = await self.session_manager.list_active_sessions()
                 for session in active_sessions:
-                    session_id = session["id"]
+                    sid = session["id"]
                     cmd_result = await self.run_command(["--disconnect"])
                     if cmd_result.get("success", False):
-                        await self.session_manager.close_session(session_id)
-                        result["disconnected_sessions"].append(session_id)
+                        await self.session_manager.close_session(sid)
+                        result["disconnected_sessions"].append(sid)
                     else:
                         logger.warning(
                             "Failed to disconnect session %s: %s",
-                            session_id,
+                            sid,
                             cmd_result.get("error", "Unknown error"),
                         )
 
@@ -973,15 +984,16 @@ class RustDeskService:
         except (TimeoutError, aiohttp.ClientError, Exception):
             logger.debug("Fork API upload probe failed, falling back to CLI", exc_info=True)
 
-        # Try fork CLI --send-file / --recv-file (20s timeout, not 120)
+        # Try fork CLI --send-file / --recv-file (20s timeout, not 120),
+        # then fall back to the stock CLI path via run_command.
         rustdesk_exe = str(self.rustdesk_path) if self.rustdesk_path else ""
         if rustdesk_exe and peer_id:
+            cmd = [rustdesk_exe]
+            if direction == "upload":
+                cmd.extend(["--send-file", peer_id, local_path, remote_path])
+            else:
+                cmd.extend(["--recv-file", peer_id, remote_path, local_path])
             try:
-                cmd = [rustdesk_exe]
-                if direction == "upload":
-                    cmd.extend(["--send-file", peer_id, local_path, remote_path])
-                else:
-                    cmd.extend(["--recv-file", peer_id, remote_path, local_path])
                 proc = await asyncio.create_subprocess_exec(
                     *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
@@ -993,10 +1005,11 @@ class RustDeskService:
                     proc.kill()
                     await proc.wait()
             except Exception:
-                pass
+                logger.debug("Fork CLI transfer failed, falling back to stock CLI", exc_info=True)
 
-                # Try RustDesk CLI --file-transfer argument
-                result = await self.run_command(args, timeout=120)
+            # Fall back to stock RustDesk CLI via run_command
+            try:
+                result = await self.run_command(cmd[1:], timeout=120)
                 if result.get("success", False):
                     return {
                         "success": True,

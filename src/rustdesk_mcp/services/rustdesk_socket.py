@@ -56,6 +56,7 @@ class RustDeskSocketClient:
 
         # Try IPv6 first, then IPv4 (following lejianwen pattern)
         for family, addr in [(socket.AF_INET6, "[::1]"), (socket.AF_INET, host)]:
+            sock: socket.socket | None = None
             try:
                 sock = socket.socket(family, socket.SOCK_STREAM)
                 sock.settimeout(timeout)

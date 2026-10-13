@@ -55,7 +55,22 @@ class AdvancedControlService:
     def validate_bounds(self, window: pwc.Window, x: int, y: int) -> bool:
         """Check if coordinates (x, y) are within the window bounds."""
         rect = window.box
-        return rect.left <= x <= rect.right and rect.top <= y <= rect.bottom
+
+        def _num(value: Any) -> float | None:
+            # bool is an int subclass; exclude it so mock flags never widen the box.
+            return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
+
+        # pywinctl Box carries left/top/width/height (no right/bottom); test
+        # doubles carry left/top/right/bottom. Prefer real numbers either way.
+        left = _num(rect.left) or 0
+        top = _num(rect.top) or 0
+        right = _num(getattr(rect, "right", None))
+        if right is None:
+            right = left + (_num(rect.width) or 0)
+        bottom = _num(getattr(rect, "bottom", None))
+        if bottom is None:
+            bottom = top + (_num(rect.height) or 0)
+        return left <= x <= right and top <= y <= bottom
 
     async def remote_click(self, x: int, y: int, button: str = "left", double: bool = False) -> dict[str, Any]:
         """Perform a safe mouse click in the RustDesk window."""
