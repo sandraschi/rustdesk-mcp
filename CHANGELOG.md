@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased (deferred pass 2026-10-13)
+
+### Tests
+- **89/89 green** (was 39 failed) — fixtures repaired (psutil mock yields the
+  process_iter mock; spec-invisible attrs pinned), API tests rewritten against
+  the real `/api/v1` surface via dependency overrides, service tests aligned to
+  fork-first contracts, recording tests assert the documented not_implemented
+  contract.
+
+### Type gate
+- **pyright 0 errors** (was 109) — pydantic migration fixed 18; lifecycle-global
+  annotations fixed 28; real bugs repaired along the way (see below).
+
+### Bug fixes (found via pyright/tests)
+- **Route order**: the SPA catch-all was registered before the API routes, so
+  GET `/health` and GET `/api/v1/*` served `index.html` in production. API
+  router + health now register first; dead duplicate `/health` route removed
+  (middleware probe serves it).
+- **Transfer fallback NameError**: the stock-CLI fallback referenced undefined
+  `args` inside a duplicate `except` (unreachable). Restructured; fallback now
+  runs whenever the fork CLI path does not succeed.
+- **Secondary entry point**: `mcp_server.py` imported `run_server_async` from
+  `server` (never exported there) and `advanced_control` from the package root
+  (never exported there) — both ImportErrors at runtime. Fixed to real paths.
+- **Health endpoint crashed**: `len()` on the `list_tools()` coroutine (always
+  TypeError). Awaited.
+- **RUSTDESK_PATH-is-a-directory**: env pointing at a folder hard-crashed
+  `get_config()` (FilePath rejection). Falls back to auto-detect with a warning.
+- **Bounds check**: `Box.right/bottom` do not exist on pywinctl (real
+  AttributeError on hardware); numeric-guarded edges support both shapes.
+- **Session bookkeeping** in tools_module can no longer flip a connection result;
+  failure dicts now carry `error`/`peer_id`/`directory` passthrough.
+- **tomli-w** added as a real dependency (was imported but never installed).
+- Deleted dead legacy `web_bridge.py` (unimported; last pyright error source).
+
+### Tooling
+- Pre-commit configured (fleet template), scripts vendored, hook installed and
+  verified. `tomli-w` + `pyright` in dev deps. `[tool.pyright]` pinned to the
+  project venv + `src` layout.
+- pydantic optional fields use `Field(default=...)` (positional-None defaults
+  are invisible to pyright and read as required).
+
 ## Unreleased (assfix 2026-10-13)
 
 ### Security

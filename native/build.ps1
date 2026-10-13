@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $RepoName = Split-Path -Leaf $Root
 $Triple = "x86_64-pc-windows-msvc"
@@ -17,10 +17,10 @@ Write-Host "=== ${RepoName} Tauri Release Build ===" -ForegroundColor Cyan
 # mutation still being in scope).
 $bunExe = Join-Path $env:USERPROFILE ".bun\bin\bun.exe"
 if (-not (Test-Path $bunExe)) { $bunExe = (Get-Command bun -ErrorAction SilentlyContinue).Source }
-if (-not $bunExe) { throw "bun not found — install from https://bun.sh" }
+if (-not $bunExe) { throw "bun not found - install from https://bun.sh" }
 $bunxExe = Join-Path $env:USERPROFILE ".bun\bin\bunx.exe"
 if (-not (Test-Path $bunxExe)) { $bunxExe = (Get-Command bunx -ErrorAction SilentlyContinue).Source }
-if (-not $bunxExe) { throw "bunx not found — install from https://bun.sh" }
+if (-not $bunxExe) { throw "bunx not found - install from https://bun.sh" }
 
 # Step 0: Verify API_BASE matches backend port
 Write-Host "-> [0/5] Verifying API_BASE port..." -ForegroundColor Yellow
@@ -139,4 +139,3 @@ if (Test-Path $strayExe) { Remove-Item $strayExe -Force; Write-Host "  Cleaned s
 
 Write-Host "=== Build complete ===" -ForegroundColor Green
 Write-Host "Ship: $nsisDir\*.exe"
-

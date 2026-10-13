@@ -1,4 +1,4 @@
-# Download Seminal AI Papers Script
+﻿# Download Seminal AI Papers Script
 # This script downloads key AI papers from arXiv and other sources
 
 # Create a function to download files with error handling
@@ -8,20 +8,20 @@ function Download-Paper {
         [string]$outputPath,
         [string]$paperName
     )
-    
+
     Write-Host "Downloading $paperName..." -ForegroundColor Cyan
     try {
         $webClient = New-Object System.Net.WebClient
         $webClient.DownloadFile($url, $outputPath)
         if (Test-Path $outputPath) {
-            Write-Host "âœ" Successfully downloaded $paperName" -ForegroundColor Green
+            Write-Host "[OK] Successfully downloaded $paperName" -ForegroundColor Green
             return $true
         } else {
-            Write-Host "âœ- Failed to download $paperName" -ForegroundColor Red
+            Write-Host "[FAIL] Failed to download $paperName" -ForegroundColor Red
             return $false
         }
     } catch {
-        Write-Host "âœ- Error downloading $paperName : $_" -ForegroundColor Red
+        Write-Host "[FAIL] Error downloading $paperName : $_" -ForegroundColor Red
         return $false
     }
 }
@@ -36,7 +36,7 @@ function New-PaperMetadata {
         [string]$pdfUrl,
         [string]$arxivId
     )
-    
+
     $metadata = @{
         title = $title
         authors = $authors
@@ -46,7 +46,7 @@ function New-PaperMetadata {
         arxivId = $arxivId
         downloaded = (Get-Date -Format "yyyy-MM-dd")
     }
-    
+
     return $metadata | ConvertTo-Json
 }
 
@@ -115,16 +115,16 @@ foreach ($paper in $papers) {
     $fileName = "$($paper.title -replace '[^\w]', '_').pdf"
     $outputDir = Join-Path $basePath $category
     $outputPath = Join-Path $outputDir $fileName
-    
+
     # Create directory if it doesn't exist
     if (-not (Test-Path $outputDir)) {
         New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
     }
-    
+
     # Download the paper if it doesn't exist
     if (-not (Test-Path $outputPath)) {
         $success = Download-Paper -url $pdfUrl -outputPath $outputPath -paperName $paper.title
-        
+
         # Create metadata file if download was successful
         if ($success) {
             $metadata = New-PaperMetadata @paper -pdfUrl $pdfUrl

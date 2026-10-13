@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-Fleet pack shim for rustdesk-mcp — delegates to the central fleet pack script.
+Fleet pack shim for rustdesk-mcp - delegates to the central fleet pack script.
 The old local pack script generated ${PWD} manifests (Claude Desktop does not
 expand it); do not resurrect it. Canonical docs: MCPB_PACKAGING_STANDARDS.md.
 #>
