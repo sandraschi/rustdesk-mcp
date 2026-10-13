@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MCP Server entry point for RustDesk MCP (secondary — primary is server.py:main).
+MCP Server entry point for RustDesk MCP (secondary - primary is server.py:main).
 
 This is the FastMCP 2.14.1 compliant server entry point that should be used
 by MCP clients and integrations. Includes advanced control tools not in server.py.
