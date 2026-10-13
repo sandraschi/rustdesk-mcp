@@ -13,42 +13,46 @@ class Config(BaseSettings):
     """Application configuration."""
 
     # Server configuration
-    host: str = Field("0.0.0.0", env="HOST")
-    port: int = Field(10805, env="PORT")
-    log_level: str = Field("INFO", env="LOG_LEVEL")
+    host: str = Field("0.0.0.0", validation_alias="HOST")
+    port: int = Field(10805, validation_alias="PORT")
+    log_level: str = Field("INFO", validation_alias="LOG_LEVEL")
 
     # RustDesk configuration (optional for development)
-    rustdesk_path: FilePath | None = Field(None, env="RUSTDESK_PATH")
-    rustdesk_config_dir: DirectoryPath | None = Field(None, env="RUSTDESK_CONFIG_DIR")
+    rustdesk_path: FilePath | None = Field(None, validation_alias="RUSTDESK_PATH")
+    rustdesk_config_dir: DirectoryPath | None = Field(None, validation_alias="RUSTDESK_CONFIG_DIR")
 
     # RustDesk server configuration (direct socket communication)
-    rustdesk_id_server_host: str = Field("127.0.0.1", env="RUSTDESK_ID_SERVER_HOST")
-    rustdesk_id_server_port: int = Field(21116, env="RUSTDESK_ID_SERVER_PORT")
-    rustdesk_relay_server_host: str = Field("127.0.0.1", env="RUSTDESK_RELAY_SERVER_HOST")
-    rustdesk_relay_server_port: int = Field(21117, env="RUSTDESK_RELAY_SERVER_PORT")
+    rustdesk_id_server_host: str = Field("127.0.0.1", validation_alias="RUSTDESK_ID_SERVER_HOST")
+    rustdesk_id_server_port: int = Field(21116, validation_alias="RUSTDESK_ID_SERVER_PORT")
+    rustdesk_relay_server_host: str = Field("127.0.0.1", validation_alias="RUSTDESK_RELAY_SERVER_HOST")
+    rustdesk_relay_server_port: int = Field(21117, validation_alias="RUSTDESK_RELAY_SERVER_PORT")
 
     # Legacy API configuration (optional, for compatibility)
-    rustdesk_api_url: str | None = Field(None, env="RUSTDESK_API_URL")
-    rustdesk_api_key: str | None = Field(None, env="RUSTDESK_API_KEY")
-    rustdesk_api_username: str = Field("admin", env="RUSTDESK_API_USERNAME")
-    rustdesk_api_password: str = Field("", env="RUSTDESK_API_PASSWORD")
+    rustdesk_api_url: str | None = Field(None, validation_alias="RUSTDESK_API_URL")
+    rustdesk_api_key: str | None = Field(None, validation_alias="RUSTDESK_API_KEY")
+    rustdesk_api_username: str = Field("admin", validation_alias="RUSTDESK_API_USERNAME")
+    rustdesk_api_password: str = Field("", validation_alias="RUSTDESK_API_PASSWORD")
 
     # MCP configuration
-    mcp_server_name: str = Field("RustDesk MCP Server", env="MCP_SERVER_NAME")
+    mcp_server_name: str = Field("RustDesk MCP Server", validation_alias="MCP_SERVER_NAME")
     mcp_server_description: str = Field(
-        "FastMCP 2.10 server for RustDesk remote desktop management", env="MCP_SERVER_DESCRIPTION"
+        "FastMCP 3.4+ server for RustDesk remote desktop management",
+        validation_alias="MCP_SERVER_DESCRIPTION",
     )
 
     # Optional authentication
-    auth_enabled: bool = Field(False, env="AUTH_ENABLED")
-    auth_username: str | None = Field(None, env="AUTH_USERNAME")
-    auth_password: str | None = Field(None, env="AUTH_PASSWORD")
+    auth_enabled: bool = Field(False, validation_alias="AUTH_ENABLED")
+    auth_username: str | None = Field(None, validation_alias="AUTH_USERNAME")
+    auth_password: str | None = Field(None, validation_alias="AUTH_PASSWORD")
 
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=True,
+        # validation_alias carries the UPPER_SNAKE env names above; this keeps
+        # field-name kwargs (Config(host=...), as used in tests) working too.
+        populate_by_name=True,
     )
 
     @field_validator("log_level")
@@ -87,6 +91,13 @@ class Config(BaseSettings):
             return None
 
         path = Path(v).expanduser().resolve()
+        if path.exists() and not path.is_file():
+            import logging
+
+            logging.getLogger(__name__).warning(
+                f"RUSTDESK_PATH points at a directory, not the executable: {path} - falling back to auto-detect"
+            )
+            return None
         if not path.exists():
             import logging
 

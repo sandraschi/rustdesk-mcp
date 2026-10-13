@@ -20,7 +20,7 @@ class ConnectionRequest(BaseModel):
 
     peer_id: str = Field(..., description="ID of the peer to connect to")
     password: str = Field(..., description="Password for the peer connection")
-    session_id: str | None = Field(None, description="Optional session ID for tracking")
+    session_id: str | None = Field(default=None, description="Optional session ID for tracking")
 
 
 class FileTransferRequest(BaseModel):
@@ -29,22 +29,22 @@ class FileTransferRequest(BaseModel):
     local_path: str = Field(..., description="Local file path")
     remote_path: str = Field(..., description="Remote file path")
     direction: str = Field("upload", description="'upload' or 'download'")
-    session_id: str | None = Field(None, description="Optional session ID for tracking")
-    peer_id: str | None = Field(None, description="RustDesk peer ID for the remote machine")
+    session_id: str | None = Field(default=None, description="Optional session ID for tracking")
+    peer_id: str | None = Field(default=None, description="RustDesk peer ID for the remote machine")
 
 
 class ScreenshotRequest(BaseModel):
     """Request model for screenshot operations."""
 
-    save_path: str | None = Field(None, description="Optional path to save the screenshot")
-    session_id: str | None = Field(None, description="Optional session ID for tracking")
+    save_path: str | None = Field(default=None, description="Optional path to save the screenshot")
+    session_id: str | None = Field(default=None, description="Optional session ID for tracking")
 
 
 class RecordingRequest(BaseModel):
     """Request model for screen recording operations."""
 
-    save_path: str | None = Field(None, description="Optional path to save the recording")
-    session_id: str | None = Field(None, description="Optional session ID for tracking")
+    save_path: str | None = Field(default=None, description="Optional path to save the recording")
+    session_id: str | None = Field(default=None, description="Optional session ID for tracking")
 
 
 class MonitoringRequest(BaseModel):
@@ -52,7 +52,7 @@ class MonitoringRequest(BaseModel):
 
     duration_seconds: int = Field(60, description="Duration to monitor in seconds")
     interval: float = Field(5.0, description="Interval between measurements in seconds")
-    session_id: str | None = Field(None, description="Optional session ID for tracking")
+    session_id: str | None = Field(default=None, description="Optional session ID for tracking")
 
 
 class RustDeskTools:
@@ -74,19 +74,32 @@ class RustDeskTools:
         try:
             result = await self.rustdesk.connect(request.peer_id, request.password)
 
-            # If we have a session ID in the request, update the session
+            # Session bookkeeping must never flip a connection result: a
+            # tracking failure is logged, the connection outcome stands.
             if request.session_id:
-                await self.rustdesk.session_manager.update_session_status(
-                    request.session_id,
-                    "connected" if result.get("success", False) else "connection_failed",
-                    peer_id=request.peer_id,
-                    **result,
-                )
+                try:
+                    await self.rustdesk.session_manager.update_session_status(
+                        request.session_id,
+                        "connected" if result.get("success", False) else "connection_failed",
+                        peer_id=request.peer_id,
+                        **result,
+                    )
+                except Exception:
+                    logger.warning("Session bookkeeping failed for %s", request.session_id, exc_info=True)
 
+            if result.get("success", False):
+                return {
+                    "success": True,
+                    "session_id": result.get("session_id"),
+                    "message": "Connected successfully",
+                    "details": result,
+                }
             return {
-                "success": result.get("success", False),
+                "success": False,
                 "session_id": result.get("session_id"),
-                "message": "Connected successfully" if result.get("success") else "Connection failed",
+                "message": "Connection failed",
+                "error": result.get("error", "Connection failed"),
+                "peer_id": request.peer_id,
                 "details": result,
             }
 
@@ -108,14 +121,24 @@ class RustDeskTools:
 
             if session_id and result.get("success", False):
                 # Update session status if we're disconnecting a specific session
-                await self.rustdesk.session_manager.update_session_status(
-                    session_id, "disconnected", disconnected_at=result.get("disconnected_at")
-                )
+                try:
+                    await self.rustdesk.session_manager.update_session_status(
+                        session_id, "disconnected", disconnected_at=result.get("disconnected_at")
+                    )
+                except Exception:
+                    logger.warning("Session bookkeeping failed for %s", session_id, exc_info=True)
 
+            if result.get("success", False):
+                return {
+                    "success": True,
+                    "disconnected_sessions": result.get("disconnected_sessions", []),
+                    "message": "Disconnected successfully",
+                }
             return {
-                "success": result.get("success", False),
+                "success": False,
                 "disconnected_sessions": result.get("disconnected_sessions", []),
-                "message": "Disconnected successfully" if result.get("success") else "Disconnection failed",
+                "message": "Disconnection failed",
+                "error": result.get("error", "Disconnection failed"),
             }
 
         except Exception as e:
@@ -141,17 +164,29 @@ class RustDeskTools:
 
             # Update session if we have a session ID
             if request.session_id:
-                await self.rustdesk.session_manager.update_session_status(
-                    request.session_id,
-                    "file_transfer_completed" if result.get("success") else "file_transfer_failed",
-                    transfer_result=result,
-                )
+                try:
+                    await self.rustdesk.session_manager.update_session_status(
+                        request.session_id,
+                        "file_transfer_completed" if result.get("success") else "file_transfer_failed",
+                        transfer_result=result,
+                    )
+                except Exception:
+                    logger.warning("Session bookkeeping failed for %s", request.session_id, exc_info=True)
 
+            if result.get("success", False):
+                return {
+                    "success": True,
+                    "direction": request.direction,
+                    "local_path": request.local_path,
+                    "remote_path": request.remote_path,
+                    "details": result,
+                }
             return {
-                "success": result.get("success", False),
+                "success": False,
                 "direction": request.direction,
                 "local_path": request.local_path,
                 "remote_path": request.remote_path,
+                "error": result.get("error", "File transfer failed"),
                 "details": result,
             }
 
@@ -261,11 +296,14 @@ class RustDeskTools:
 
             # Update session if we have a session ID
             if request.session_id:
-                await self.rustdesk.session_manager.update_session_status(
-                    request.session_id,
-                    "monitoring_completed" if result.get("success") else "monitoring_failed",
-                    monitoring_summary=result.get("summary", {}),
-                )
+                try:
+                    await self.rustdesk.session_manager.update_session_status(
+                        request.session_id,
+                        "monitoring_completed" if result.get("success") else "monitoring_failed",
+                        monitoring_summary=result.get("summary", {}),
+                    )
+                except Exception:
+                    logger.warning("Session bookkeeping failed for %s", request.session_id, exc_info=True)
 
             return result
 
@@ -317,6 +355,9 @@ class RustDeskTools:
         """
         try:
             result = await self.rustdesk.list_remote_files(remote_path, peer_id)
+            # Always report which directory was listed, even on failure.
+            if isinstance(result, dict):
+                result.setdefault("directory", remote_path)
 
             # Update session if we have a session ID
             if session_id and result.get("success"):

@@ -18,11 +18,11 @@ sys.path.insert(0, str(project_root))
 from fastmcp import FastMCP
 
 from rustdesk_mcp.config import get_config
-from rustdesk_mcp.server import run_server_async
 from rustdesk_mcp.services.advanced_control import AdvancedControlService
 from rustdesk_mcp.services.rustdesk_service import RustDeskService
 from rustdesk_mcp.services.wol_service import WolService
 from rustdesk_mcp.tools_module import RustDeskTools
+from rustdesk_mcp.transport import run_server_async
 
 _READ_ONLY = {"readonly": True}
 _MUTATING = {}
@@ -378,9 +378,9 @@ async def register_tools(
 
         SECURITY: Logs every action and validates window bounds.
         """
-        from rustdesk_mcp import advanced_control
+        from rustdesk_mcp.services.advanced_control import AdvancedControlService
 
-        return await advanced_control.remote_click(x, y, button)
+        return await AdvancedControlService().remote_click(x, y, button)
 
     @mcp.tool()
     async def remote_type(text: str) -> dict:
@@ -392,9 +392,9 @@ async def register_tools(
 
         SECURITY: Rate-limited and logged.
         """
-        from rustdesk_mcp import advanced_control
+        from rustdesk_mcp.services.advanced_control import AdvancedControlService
 
-        return await advanced_control.remote_type(text)
+        return await AdvancedControlService().remote_type(text)
 
     @mcp.tool()
     async def agentic_workflow_tool(goal: str) -> dict:
@@ -420,6 +420,4 @@ async def register_tools(
 if __name__ == "__main__":
     import asyncio
 
-    from rustdesk_mcp.server import run_server_async
-
-    asyncio.run(run_server_async(server_name="rustdesk-mcp"))
+    asyncio.run(main())

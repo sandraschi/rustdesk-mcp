@@ -153,9 +153,11 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-# Store the service instances
-rustdesk_service: RustDeskService | None = None
-rustdesk_tools: RustDeskTools | None = None
+# Store the service instances. Lifespan/init_for_stdio always populate these
+# before any tool runs; the ignore documents that invariant for the checker
+# (tools cannot execute before registration + init complete).
+rustdesk_service: RustDeskService = None  # type: ignore[assignment]
+rustdesk_tools: RustDeskTools = None  # type: ignore[assignment]
 wol_service: WolService | None = None
 advanced_control: AdvancedControlService | None = None
 
@@ -246,7 +248,13 @@ mcp = FastMCP(
     version="0.1.0",
 )
 
-# Setup webapp bridge
+# Route registration order matters: the SPA catch-all (/{full_path:path},
+# registered inside setup_webapp) matches every GET path, so all API + health
+# routes must be registered BEFORE it or they serve index.html in production.
+app.include_router(api_v1_router)
+
+
+# Setup webapp bridge (static SPA handler LAST so API routes match first)
 setup_webapp(web_app, mcp_app=mcp)
 
 
@@ -1112,10 +1120,8 @@ async def register_tools():
         return {"success": True, "message": "rustdesk-mcp shutting down in ~500 ms"}
 
 
-# Exception handlers and route registrations
-app.include_router(api_v1_router)
-
-
+# Exception handlers (API + health routes were registered above, before the
+# SPA catch-all inside setup_webapp, so they match first).
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Handle request validation errors."""
@@ -1133,22 +1139,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": str(exc)},
     )
-
-
-# Health check endpoint (no auth - fleet probe + load balancers)
-@app.get("/health", dependencies=[])
-async def health_check() -> dict[str, Any]:
-    """Health check endpoint - fleet standard format."""
-    tool_count = len(mcp.list_tools()) if mcp else 0
-    return {
-        "status": "ok",
-        "server": "rustdesk-mcp",
-        "version": "0.1.0",
-        "uptime_seconds": int(time.time() - _START_TIME),
-        "tool_count": tool_count,
-        "rustdesk_available": rustdesk_service is not None and not rustdesk_service.mock_mode,
-        "mock_mode": rustdesk_service.mock_mode if rustdesk_service else True,
-    }
 
 
 # Main entry point
